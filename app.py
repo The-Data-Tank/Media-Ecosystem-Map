@@ -25,7 +25,7 @@ import pipeline as P
 st.set_page_config(page_title="Media Ecosystem Atlas", page_icon="🗺️", layout="wide")
 
 ROOT = Path(__file__).parent
-TEMPLATE_PATH = ROOT / "template.html"
+TEMPLATE_PATH = ROOT / "index.html"
 EUR_CSV = ROOT / "data" / "european_media_outlets.csv"
 ECO_CSV = ROOT / "data" / "wider_media_ecosystem.csv"
 
