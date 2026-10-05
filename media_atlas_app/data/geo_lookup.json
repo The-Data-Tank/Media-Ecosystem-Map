@@ -1,0 +1,178 @@
+{
+  "Germany": {
+    "lat": 52.52,
+    "lon": 13.405
+  },
+  "France": {
+    "lat": 48.8566,
+    "lon": 2.3522
+  },
+  "Switzerland": {
+    "lat": 46.948,
+    "lon": 7.4474
+  },
+  "UK": {
+    "lat": 51.5074,
+    "lon": -0.1278
+  },
+  "Belgium": {
+    "lat": 50.8503,
+    "lon": 4.3517
+  },
+  "Greece": {
+    "lat": 37.9838,
+    "lon": 23.7275
+  },
+  "Portugal": {
+    "lat": 38.7223,
+    "lon": -9.1393
+  },
+  "Poland": {
+    "lat": 52.2297,
+    "lon": 21.0122
+  },
+  "Austria": {
+    "lat": 48.2082,
+    "lon": 16.3738
+  },
+  "Spain": {
+    "lat": 40.4168,
+    "lon": -3.7038
+  },
+  "Czech Republic": {
+    "lat": 50.0755,
+    "lon": 14.4378
+  },
+  "Slovakia": {
+    "lat": 48.1486,
+    "lon": 17.1077
+  },
+  "Italy": {
+    "lat": 41.9028,
+    "lon": 12.4964
+  },
+  "Slovenia": {
+    "lat": 46.0569,
+    "lon": 14.5058
+  },
+  "Estonia": {
+    "lat": 59.437,
+    "lon": 24.7536
+  },
+  "Netherlands": {
+    "lat": 52.3676,
+    "lon": 4.9041
+  },
+  "Romania": {
+    "lat": 44.4268,
+    "lon": 26.1025
+  },
+  "Bosnia and Herzegovina": {
+    "lat": 43.8563,
+    "lon": 18.4131
+  },
+  "Serbia": {
+    "lat": 44.7866,
+    "lon": 20.4489
+  },
+  "Hungary": {
+    "lat": 47.4979,
+    "lon": 19.0402
+  },
+  "Croatia": {
+    "lat": 45.815,
+    "lon": 15.9819
+  },
+  "Latvia": {
+    "lat": 56.9496,
+    "lon": 24.1052
+  },
+  "Luxembourg": {
+    "lat": 49.6116,
+    "lon": 6.1319
+  },
+  "Moldova": {
+    "lat": 47.0105,
+    "lon": 28.8638
+  },
+  "Ukraine": {
+    "lat": 50.4501,
+    "lon": 30.5234
+  },
+  "Norway": {
+    "lat": 59.9139,
+    "lon": 10.7522
+  },
+  "Sweden": {
+    "lat": 59.3293,
+    "lon": 18.0686
+  },
+  "Bulgaria": {
+    "lat": 42.7339,
+    "lon": 25.4858
+  },
+  "USA": {
+    "lat": 39.8283,
+    "lon": -98.5795
+  },
+  "Catalonia": {
+    "lat": 41.3851,
+    "lon": 2.1734
+  },
+  "Azerbaijan": {
+    "lat": 40.4093,
+    "lon": 49.8671
+  },
+  "Brazil": {
+    "lat": -14.235,
+    "lon": -51.9253
+  },
+  "Denmark": {
+    "lat": 55.6761,
+    "lon": 12.5683
+  },
+  "Finland": {
+    "lat": 60.1699,
+    "lon": 24.9384
+  },
+  "North Macedonia": {
+    "lat": 41.9981,
+    "lon": 21.4254
+  },
+  "Albania": {
+    "lat": 41.3275,
+    "lon": 19.8187
+  },
+  "Canada": {
+    "lat": 56.1304,
+    "lon": -106.3468
+  },
+  "Democratic Republic of the Congo": {
+    "lat": -4.0383,
+    "lon": 21.7587
+  },
+  "Namibia": {
+    "lat": -22.9576,
+    "lon": 18.4904
+  },
+  "Nigeria": {
+    "lat": 9.082,
+    "lon": 8.6753
+  },
+  "South Africa": {
+    "lat": -30.5595,
+    "lon": 22.9375
+  },
+  "Zimbabwe": {
+    "lat": -19.0154,
+    "lon": 29.1549
+  },
+  "Ireland": {
+    "lat": 53.3498,
+    "lon": -6.2603
+  },
+  "DRC": {
+    "lat": -4.0383,
+    "lon": 21.7587
+  }
+}
