@@ -1,7 +1,6 @@
-# Media Ecosystem Atlas — auto-reload edition
+# Media Ecosystem Atlas 
 
-Your customer-approved dashboard, pixel-for-pixel. Edit the data files, refresh the
-browser, see the changes. That's the whole workflow.
+View the interactive map here: https://media-ecosystem-map.streamlit.app/
 
 ## How to update the data
 
