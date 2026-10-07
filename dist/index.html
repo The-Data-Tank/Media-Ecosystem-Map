@@ -1,0 +1,2114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Media Ecosystem Atlas — Stakeholder Intelligence Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css"/>
+<script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* Editorial palette — warm paper, ink, archival accents */
+    --paper:        #F4F1EA;
+    --paper-deep:   #EAE5DA;
+    --surface:      #FBF9F3;
+    --surface-2:    #FFFFFF;
+    --ink:          #1A1A18;
+    --ink-2:        #36342E;
+    --muted:        #6E6A60;
+    --muted-2:      #9C988D;
+    --rule:         #D9D4C7;
+    --rule-soft:    #E5E1D5;
+
+    /* Categorical accents — chosen to harmonise with paper */
+    --c1: #B33A3A;   /* archival red */
+    --c2: #2E5F8A;   /* deep blue */
+    --c3: #C28C2C;   /* mustard ochre */
+    --c4: #4A7B5C;   /* forest */
+    --c5: #6B4E8A;   /* aubergine */
+    --c6: #1B5666;   /* peacock */
+    --c7: #A85432;   /* terracotta */
+    --c8: #5C5C5C;   /* graphite */
+    --c9: #8B5A8C;   /* mauve */
+
+    --accent:       var(--c1);
+    --shadow-sm:    0 1px 2px rgba(26,26,24,0.04), 0 1px 1px rgba(26,26,24,0.03);
+    --shadow-md:    0 4px 16px rgba(26,26,24,0.06), 0 2px 4px rgba(26,26,24,0.04);
+    --shadow-lg:    0 12px 40px rgba(26,26,24,0.10), 0 4px 12px rgba(26,26,24,0.06);
+
+    --sidebar-w:    240px;
+    --insights-w:   340px;
+    --header-h:     64px;
+  }
+
+  html, body { height: 100%; }
+  body {
+    font-family: 'Inter Tight', -apple-system, system-ui, sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    height: 100vh;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: var(--header-h) 1fr;
+    grid-template-columns: var(--sidebar-w) 1fr var(--insights-w);
+    grid-template-areas:
+      "header header header"
+      "sidebar map insights";
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ─────────────── HEADER ─────────────── */
+  header {
+    grid-area: header;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 20px;
+    z-index: 900;          /* above the map container so the search dropdown sits on top of the map */
+    position: relative;
+  }
+  /* Decorative top hairline */
+  header::before {
+    content: '';
+    position: absolute; left: 0; right: 0; top: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--c1) 0%, var(--c1) 14%, var(--c2) 14%, var(--c2) 28%, var(--c3) 28%, var(--c3) 42%, var(--c4) 42%, var(--c4) 56%, var(--c6) 56%, var(--c6) 70%, var(--c5) 70%, var(--c5) 84%, var(--c7) 84%, var(--c7) 100%);
+  }
+
+  .brand {
+    display: flex; align-items: baseline; gap: 12px;
+    padding-right: 18px; border-right: 1px solid var(--rule);
+    height: 36px;
+  }
+  .brand .mark {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .brand .mark em {
+    font-style: italic;
+    color: var(--c1);
+    font-weight: 400;
+  }
+  .brand .sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--muted-2);
+    align-self: center;
+  }
+
+  /* Dataset toggle (segmented) */
+  .ds-toggle {
+    display: inline-flex;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: 3px;
+    height: 36px;
+    align-items: center;
+    position: relative;
+  }
+  .ds-toggle button {
+    border: 0; background: transparent; cursor: pointer;
+    padding: 0 16px; height: 28px;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 12.5px; font-weight: 500;
+    color: var(--muted);
+    border-radius: 999px;
+    transition: color 0.2s;
+    display: flex; align-items: center; gap: 6px;
+    position: relative;
+    z-index: 2;
+  }
+  .ds-toggle button .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 500;
+    color: var(--muted-2);
+    background: transparent;
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid var(--rule);
+    transition: all 0.2s;
+  }
+  .ds-toggle .pill {
+    position: absolute;
+    top: 3px; bottom: 3px;
+    background: var(--ink);
+    border-radius: 999px;
+    transition: left 0.32s cubic-bezier(.32,.72,.38,1.08), width 0.32s cubic-bezier(.32,.72,.38,1.08);
+    z-index: 1;
+  }
+  .ds-toggle button.active { color: var(--surface-2); }
+  .ds-toggle button.active .num {
+    color: var(--paper);
+    border-color: rgba(244,241,234,0.3);
+  }
+
+  .header-search {
+    flex: 0 1 280px;
+    position: relative;
+    margin-left: auto;
+  }
+  .header-search input {
+    width: 100%; height: 36px;
+    padding: 0 14px 0 38px;
+    border: 1px solid var(--rule);
+    background: var(--paper);
+    border-radius: 999px;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 13px;
+    color: var(--ink);
+    outline: none;
+    transition: all 0.2s;
+  }
+  .header-search input::placeholder { color: var(--muted-2); }
+  .header-search input:focus {
+    background: var(--surface-2);
+    border-color: var(--ink-2);
+    box-shadow: 0 0 0 4px rgba(26,26,24,0.04);
+  }
+  .header-search svg {
+    position: absolute; left: 14px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted-2);
+    pointer-events: none;
+  }
+  .header-search kbd {
+    position: absolute; right: 10px; top: 50%;
+    transform: translateY(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    color: var(--muted-2);
+    border: 1px solid var(--rule);
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  .header-kpi {
+    display: flex; gap: 0;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    background: var(--surface-2);
+    overflow: hidden;
+    height: 36px;
+  }
+  .kpi-item {
+    padding: 0 14px;
+    display: flex; flex-direction: column; justify-content: center;
+    border-right: 1px solid var(--rule-soft);
+    min-width: 64px;
+  }
+  .kpi-item:last-child { border-right: 0; }
+  .kpi-num {
+    font-family: 'Fraunces', serif;
+    font-size: 16px; font-weight: 500;
+    color: var(--ink);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    font-feature-settings: "tnum";
+  }
+  .kpi-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5px;
+    color: var(--muted-2);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-top: 2px;
+  }
+
+  /* ─────────────── SIDEBAR ─────────────── */
+  aside {
+    grid-area: sidebar;
+    background: var(--surface-2);
+    border-right: 1px solid var(--rule);
+    overflow-y: auto;
+    padding: 22px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+  }
+  aside::-webkit-scrollbar, #insights::-webkit-scrollbar { width: 6px; }
+  aside::-webkit-scrollbar-thumb, #insights::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 3px; }
+
+  .filter-group { display: flex; flex-direction: column; gap: 9px; }
+  .filter-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 2px;
+  }
+  .filter-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+  }
+  .filter-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    color: var(--muted-2);
+  }
+  .filter-meta a {
+    color: var(--accent);
+    cursor: pointer;
+    text-decoration: none;
+    border-bottom: 1px dotted currentColor;
+  }
+
+  /* Country select */
+  .country-select-wrap { position: relative; }
+  select.country {
+    width: 100%; padding: 10px 30px 10px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 12.5px;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' fill='none' stroke='%236E6A60' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 11px center;
+    transition: all 0.15s;
+  }
+  select.country:hover { border-color: var(--muted); }
+  select.country:focus { border-color: var(--ink); background-color: var(--surface-2); }
+
+  /* Category tiles */
+  .tile-group { display: flex; flex-direction: column; gap: 3px; }
+  .cat-tile {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 9px;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 12px;
+    user-select: none;
+    color: var(--ink-2);
+  }
+  .cat-tile:hover { background: var(--paper); }
+  .cat-tile.off { opacity: 0.42; }
+  .cat-tile.off .dot { background: transparent !important; border: 1.5px solid var(--rule); }
+  .cat-tile .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 1.5px var(--surface-2), 0 0 0 2.5px currentColor;
+  }
+  .cat-tile .name { flex: 1; line-height: 1.2; }
+  .cat-tile .count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--muted-2);
+  }
+
+  /* Secondary toggles */
+  .sec-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+  .sec-toggle {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 7px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--muted);
+    transition: all 0.15s;
+    user-select: none;
+    border: 1px solid transparent;
+  }
+  .sec-toggle:hover { background: var(--paper); color: var(--ink-2); }
+  .sec-toggle.on { color: var(--ink); background: var(--paper); border-color: var(--rule); }
+  .sec-toggle .check {
+    width: 12px; height: 12px;
+    border: 1.5px solid var(--rule);
+    border-radius: 3px;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .sec-toggle.on .check {
+    background: var(--ink); border-color: var(--ink);
+  }
+  .sec-toggle.on .check::after {
+    content: ''; position: absolute;
+    left: 3px; top: 0px;
+    width: 4px; height: 7px;
+    border: solid var(--surface-2);
+    border-width: 0 1.5px 1.5px 0;
+    transform: rotate(45deg);
+  }
+  .sec-toggle .lbl {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* View mode chooser */
+  .view-modes {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 3px;
+    background: var(--paper);
+    padding: 3px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+  }
+  .vm-btn {
+    border: 0; background: transparent; cursor: pointer;
+    padding: 6px 4px;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--muted);
+    border-radius: 4px;
+    transition: all 0.15s;
+    text-align: center;
+  }
+  .vm-btn:hover { color: var(--ink); }
+  .vm-btn.active { background: var(--surface-2); color: var(--ink); box-shadow: var(--shadow-sm); }
+
+  .reset-btn {
+    margin-top: auto;
+    padding: 9px 14px;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+  .reset-btn:hover { background: var(--paper); color: var(--ink); border-color: var(--muted); }
+
+  /* ─────────────── MAP ─────────────── */
+  #map-container {
+    grid-area: map;
+    position: relative;
+    background: var(--paper-deep);
+    z-index: 1;            /* isolate the map's stacking context below the header */
+  }
+  #map { height: 100%; width: 100%; }
+  .maplibregl-map { background: var(--paper-deep); font-family: 'Inter Tight', sans-serif; }
+  .maplibregl-canvas { outline: none; }
+  .maplibregl-ctrl-group {
+    background: var(--surface-2) !important;
+    border: 1px solid var(--rule);
+    box-shadow: none !important;
+  }
+  .maplibregl-ctrl-group button + button { border-top: 1px solid var(--rule) !important; }
+  .maplibregl-ctrl-attrib {
+    background: rgba(251,249,243,0.85) !important;
+    font-family: 'Inter Tight', sans-serif !important;
+    font-size: 9.5px !important;
+    color: var(--muted) !important;
+  }
+  .maplibregl-ctrl-attrib a { color: var(--muted-2) !important; }
+
+  /* Custom ring marker for selection */
+  .selection-ring {
+    width: 74px; height: 74px;
+    border: 2px dashed #1A1A18;
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  /* Map overlays */
+  .map-chrome {
+    position: absolute;
+    z-index: 500;
+    pointer-events: none;
+  }
+  .map-chrome > * { pointer-events: auto; }
+
+  /* Top-left: title card overlay */
+  .map-title-card {
+    top: 16px; left: 16px;
+    background: var(--surface-2);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 10px 14px;
+    box-shadow: var(--shadow-md);
+    max-width: 320px;
+  }
+  .map-title-card .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--muted-2);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    margin-bottom: 4px;
+  }
+  .map-title-card .title {
+    font-family: 'Fraunces', serif;
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+  .map-title-card .title em { color: var(--c1); font-weight: 400; }
+  .map-title-card .sub {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* Bottom-left legend */
+  .map-legend {
+    bottom: 16px; left: 16px;
+    background: rgba(251,249,243,0.94);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 11px 14px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex; flex-direction: column; gap: 8px;
+    max-width: 280px;
+  }
+  .legend-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    font-size: 9.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+  }
+  .legend-row { display: flex; flex-wrap: wrap; gap: 9px 12px; }
+  .legend-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px;
+    color: var(--ink-2);
+  }
+  .legend-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .legend-scale {
+    display: flex; align-items: flex-end; gap: 6px;
+    margin-top: 2px;
+  }
+  .legend-scale .lbl { font-size: 10px; color: var(--muted-2); }
+  .legend-scale .bubble {
+    border: 1.5px solid var(--ink-2);
+    background: rgba(26,26,24,0.08);
+    border-radius: 50%;
+  }
+
+  /* Bottom-right: comparison stats */
+  .map-stat-strip {
+    bottom: 16px; right: 16px;
+    background: rgba(251,249,243,0.94);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 8px 12px;
+    backdrop-filter: blur(6px);
+    display: flex; gap: 14px; align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .map-stat-strip strong { color: var(--ink); font-weight: 500; }
+  .map-stat-strip .live {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--c4); flex-shrink: 0;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.4); }
+  }
+
+  /* Tooltip styling */
+  .maplibregl-popup.atlas-tip {
+    z-index: 600;            /* above the .map-chrome overlays (500) */
+    pointer-events: none;
+    max-width: none !important;
+  }
+  .maplibregl-popup.atlas-tip .maplibregl-popup-content {
+    background: var(--surface-2);
+    border: 1px solid var(--rule);
+    box-shadow: var(--shadow-lg);
+    border-radius: 8px;
+    padding: 0;
+    color: var(--ink);
+    font-family: 'Inter Tight', sans-serif;
+  }
+  .maplibregl-popup.atlas-tip .maplibregl-popup-tip { display: none; }
+  .tip-inner { padding: 12px 14px; min-width: 200px; }
+  .tip-name {
+    font-family: 'Fraunces', serif;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1.1;
+    margin-bottom: 2px;
+    letter-spacing: -0.01em;
+  }
+  .tip-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    color: var(--muted-2);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+  .tip-row {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11.5px;
+    padding: 2px 0;
+  }
+  .tip-row .d { width: 6px; height: 6px; border-radius: 50%; }
+  .tip-row .l { flex: 1; color: var(--ink-2); }
+  .tip-row .v { font-family: 'JetBrains Mono', monospace; color: var(--muted); font-size: 10.5px; }
+  .tip-foot {
+    margin-top: 8px;
+    padding-top: 7px;
+    border-top: 1px solid var(--rule-soft);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    color: var(--c1);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+  }
+
+  .no-results {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--surface-2);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 22px 28px;
+    text-align: center;
+    z-index: 400;
+    display: none;
+    pointer-events: none;
+    box-shadow: var(--shadow-md);
+  }
+  .no-results.show { display: block; }
+  .no-results .nrl-title {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .no-results .nrl-sub { font-size: 12px; color: var(--muted); }
+
+  /* ─────────────── INSIGHTS PANEL ─────────────── */
+  #insights {
+    grid-area: insights;
+    background: var(--surface-2);
+    border-left: 1px solid var(--rule);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .insights-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--rule);
+    background: var(--surface-2);
+    position: sticky; top: 0;
+    z-index: 10;
+  }
+  .insights-tab {
+    flex: 1;
+    border: 0; background: transparent; cursor: pointer;
+    padding: 14px 8px;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    letter-spacing: 0.02em;
+  }
+  .insights-tab:hover { color: var(--ink-2); }
+  .insights-tab.active {
+    color: var(--ink);
+    border-bottom-color: var(--ink);
+  }
+
+  #insights-content {
+    padding: 18px 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    flex: 1;
+  }
+
+  .panel-section { display: flex; flex-direction: column; gap: 10px; }
+  .panel-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 6px;
+  }
+  .panel-title {
+    font-family: 'Fraunces', serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .panel-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--muted-2);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+  }
+
+  /* Bar chart */
+  .bar-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 4px;
+    border-radius: 4px;
+    transition: background 0.12s;
+  }
+  .bar-row.clickable { cursor: pointer; }
+  .bar-row.clickable:hover { background: var(--paper); }
+  .bar-label {
+    font-size: 11.5px;
+    width: 96px;
+    flex-shrink: 0;
+    color: var(--ink-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+  }
+  .bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--paper-deep);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s cubic-bezier(.4,0,.2,1);
+  }
+  .bar-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--ink);
+    width: 26px;
+    text-align: right;
+    flex-shrink: 0;
+    font-feature-settings: "tnum";
+  }
+
+  /* Stacked bars (revenue mix) */
+  .stacked-row {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 7px;
+  }
+  .stacked-label {
+    font-size: 11px;
+    width: 96px;
+    flex-shrink: 0;
+    color: var(--ink-2);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .stacked-track {
+    flex: 1;
+    height: 14px;
+    display: flex;
+    border-radius: 3px;
+    overflow: hidden;
+    background: var(--paper);
+    gap: 1px;
+  }
+  .stacked-seg {
+    height: 100%;
+    transition: width 0.4s cubic-bezier(.4,0,.2,1);
+    cursor: pointer;
+    position: relative;
+  }
+
+  .sec-mini-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 8px; }
+  .sec-mini-legend .item {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 10.5px;
+    color: var(--muted);
+  }
+  .sec-mini-legend .swatch { width: 8px; height: 8px; border-radius: 2px; }
+
+  /* Org list */
+  .org-list { display: flex; flex-direction: column; }
+  .org-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid var(--rule-soft);
+    font-size: 12px;
+  }
+  .org-item:last-child { border-bottom: 0; }
+  .org-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 5px;
+  }
+  .org-info { flex: 1; min-width: 0; }
+  .org-name {
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .org-meta {
+    font-size: 10.5px;
+    color: var(--muted);
+    margin-top: 2px;
+    display: flex; gap: 5px; flex-wrap: wrap;
+  }
+  .org-meta .chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    background: var(--paper);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--muted);
+  }
+  .org-link {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    color: var(--c2);
+    text-decoration: none;
+    margin-top: 3px;
+    display: inline-block;
+    border-bottom: 1px dotted var(--c2);
+  }
+  .org-link:hover { color: var(--c1); border-bottom-color: var(--c1); }
+
+  /* Selection header */
+  .selected-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 8px; padding-bottom: 14px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 4px;
+  }
+  .selected-name-block { min-width: 0; flex: 1; }
+  .selected-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--muted-2);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    margin-bottom: 2px;
+  }
+  .selected-name {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+  .selected-stats {
+    display: flex; gap: 18px;
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: var(--paper);
+    border-radius: 6px;
+  }
+  .selected-stat .v {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1;
+    font-feature-settings: "tnum";
+  }
+  .selected-stat .l {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5px;
+    color: var(--muted-2);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-top: 4px;
+  }
+  .back-btn {
+    border: 1px solid var(--rule);
+    background: transparent;
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 10.5px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .back-btn:hover { background: var(--paper); color: var(--ink); border-color: var(--muted); }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+  }
+  .empty-state .ico { font-size: 24px; margin-bottom: 8px; }
+
+  /* Comparison view */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .compare-card {
+    background: var(--paper);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .compare-card .v {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1;
+    font-feature-settings: "tnum";
+  }
+  .compare-card .l {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5px;
+    color: var(--muted-2);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-top: 4px;
+  }
+  .compare-card .delta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    margin-top: 6px;
+  }
+  .delta.up { color: var(--c4); }
+  .delta.dn { color: var(--c1); }
+
+  /* Sparkline / time series */
+  .sparkline {
+    width: 100%;
+    height: 60px;
+    margin-top: 6px;
+    overflow: visible;
+  }
+  .sparkline path.area { fill: rgba(46,95,138,0.12); }
+  .sparkline path.line { fill: none; stroke: var(--c2); stroke-width: 1.5; }
+  .sparkline .axis-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    fill: var(--muted-2);
+  }
+  .sparkline .marker { fill: var(--c2); }
+
+  /* Animation */
+  .animate-in > * {
+    animation: fadeUp 0.4s cubic-bezier(.2,.7,.3,1) backwards;
+  }
+  .animate-in > *:nth-child(1) { animation-delay: 0.02s; }
+  .animate-in > *:nth-child(2) { animation-delay: 0.08s; }
+  .animate-in > *:nth-child(3) { animation-delay: 0.14s; }
+  .animate-in > *:nth-child(4) { animation-delay: 0.20s; }
+  .animate-in > *:nth-child(5) { animation-delay: 0.26s; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Search results dropdown */
+  .search-results {
+    position: absolute;
+    top: 42px; right: 0; left: 0;
+    background: var(--surface-2);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    max-height: 360px;
+    overflow-y: auto;
+    z-index: 800;
+    display: none;
+  }
+  .search-results.show { display: block; }
+  .sr-item {
+    padding: 9px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--rule-soft);
+    display: flex; align-items: center; gap: 10px;
+    transition: background 0.12s;
+  }
+  .sr-item:last-child { border-bottom: 0; }
+  .sr-item:hover, .sr-item.focus { background: var(--paper); }
+  .sr-item .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .sr-item .name {
+    font-size: 12.5px;
+    color: var(--ink);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .sr-item .where {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px;
+    color: var(--muted);
+  }
+  .sr-empty {
+    padding: 20px; text-align: center;
+    font-size: 12px; color: var(--muted);
+  }
+
+  /* Hidden helper */
+  .hidden { display: none !important; }
+
+  /* Scrollbar across panel */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted-2); }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  /* Keyboard shortcut overlay */
+  .kbd-overlay {
+    position: fixed; inset: 0;
+    background: rgba(26,26,24,0.4);
+    backdrop-filter: blur(2px);
+    z-index: 1000;
+    display: none;
+    align-items: center; justify-content: center;
+  }
+  .kbd-overlay.show { display: flex; }
+  .kbd-card {
+    background: var(--surface-2);
+    border-radius: 14px;
+    padding: 28px 32px;
+    width: 420px;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--rule);
+  }
+  .kbd-card h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    color: var(--ink);
+  }
+  .kbd-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--rule-soft);
+    font-size: 13px;
+  }
+  .kbd-row:last-child { border-bottom: 0; }
+  .kbd-row .desc { color: var(--ink-2); }
+  .kbd-row kbd {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 2px 7px;
+    border-radius: 4px;
+    color: var(--ink);
+  }
+
+  /* Responsive guard */
+  @media (max-width: 1100px) {
+    body {
+      grid-template-columns: 1fr;
+      grid-template-rows: var(--header-h) auto 1fr auto;
+      grid-template-areas: "header" "sidebar" "map" "insights";
+      overflow: auto;
+    }
+    aside, #insights { max-height: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div>
+      <div class="mark">Atlas<em>·</em>Media</div>
+    </div>
+    <div class="sub">v1·intelligence</div>
+  </div>
+
+  <div class="ds-toggle" id="ds-toggle" role="tablist" aria-label="Dataset">
+    <span class="pill" id="ds-pill"></span>
+    <button class="active" data-ds="d1" role="tab" aria-selected="true">European Outlets <span class="num" id="ds-count-d1">82</span></button>
+    <button data-ds="d2" role="tab" aria-selected="false">Wider Ecosystem <span class="num" id="ds-count-d2">198</span></button>
+  </div>
+
+  <div class="header-search">
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/>
+      <path d="m11 11 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+    <input type="text" id="search-input" placeholder="Search organisations or countries…" autocomplete="off">
+    <kbd>/</kbd>
+    <div class="search-results" id="search-results"></div>
+  </div>
+
+  <div class="header-kpi">
+    <div class="kpi-item"><div class="kpi-num" id="kpi-orgs">—</div><div class="kpi-label">Orgs</div></div>
+    <div class="kpi-item"><div class="kpi-num" id="kpi-countries">—</div><div class="kpi-label">Geos</div></div>
+    <div class="kpi-item"><div class="kpi-num" id="kpi-pct">—</div><div class="kpi-label" id="kpi-pct-label">Top Cat</div></div>
+  </div>
+</header>
+
+<aside>
+  <div class="filter-group">
+    <div class="filter-head">
+      <div class="filter-label">Geography</div>
+      <div class="filter-meta" id="geo-meta"></div>
+    </div>
+    <div class="country-select-wrap">
+      <select class="country" id="country-select"><option value="">All countries</option></select>
+    </div>
+  </div>
+
+  <div class="filter-group">
+    <div class="filter-head">
+      <div class="filter-label" id="cat-label">Legal Category</div>
+      <div class="filter-meta"><a id="cat-toggle-all">all/none</a></div>
+    </div>
+    <div class="tile-group" id="cat-tiles"></div>
+  </div>
+
+  <div class="filter-group">
+    <div class="filter-head">
+      <div class="filter-label" id="sec-label">Revenue Streams</div>
+      <div class="filter-meta">filter · any of</div>
+    </div>
+    <div class="sec-grid" id="sec-toggles"></div>
+  </div>
+
+  <div class="filter-group">
+    <div class="filter-head">
+      <div class="filter-label">Map View</div>
+    </div>
+    <div class="view-modes" id="view-modes">
+      <button class="vm-btn active" data-vm="bubble">Bubble</button>
+      <button class="vm-btn" data-vm="dom">Dominant</button>
+      <button class="vm-btn" data-vm="density">Density</button>
+    </div>
+  </div>
+
+  <button class="reset-btn" id="reset-btn">↺ Reset filters</button>
+</aside>
+
+<div id="map-container">
+  <div id="map" tabindex="0"></div>
+
+  <div class="map-chrome map-title-card">
+    <div class="eyebrow" id="title-eyebrow">Dataset 01 · Independent Media</div>
+    <div class="title" id="title-headline">European <em>Media</em> Outlets</div>
+    <div class="sub" id="title-sub">Independent media organisations across Europe</div>
+  </div>
+
+  <div class="map-chrome map-legend">
+    <div class="legend-title" id="legend-title">By Legal Category</div>
+    <div class="legend-row" id="legend-cats"></div>
+    <div class="legend-title" style="margin-top:4px">Bubble Size · Org Count</div>
+    <div class="legend-scale">
+      <div class="bubble" style="width:10px;height:10px"></div>
+      <div class="bubble" style="width:18px;height:18px"></div>
+      <div class="bubble" style="width:28px;height:28px"></div>
+      <div class="lbl">few → many</div>
+    </div>
+  </div>
+
+  <div class="map-chrome map-stat-strip">
+    <div class="live"></div>
+    <div>Showing <strong id="strip-orgs">—</strong> orgs · <strong id="strip-countries">—</strong> geos</div>
+    <div>Top: <strong id="strip-top">—</strong></div>
+  </div>
+
+  <div class="no-results" id="no-results">
+    <div class="nrl-title">No organisations match</div>
+    <div class="nrl-sub">Try adjusting filters or hit ↺ Reset</div>
+  </div>
+</div>
+
+<div id="insights">
+  <div class="insights-tabs">
+    <button class="insights-tab active" data-tab="overview">Overview</button>
+    <button class="insights-tab" data-tab="rankings">Rankings</button>
+    <button class="insights-tab" data-tab="composition">Composition</button>
+  </div>
+  <div id="insights-content"></div>
+</div>
+
+<div class="kbd-overlay" id="kbd-overlay">
+  <div class="kbd-card">
+    <h3>Keyboard shortcuts</h3>
+    <div class="kbd-row"><span class="desc">Focus search</span><kbd>/</kbd></div>
+    <div class="kbd-row"><span class="desc">Toggle dataset</span><kbd>1</kbd> <kbd>2</kbd></div>
+    <div class="kbd-row"><span class="desc">Reset filters</span><kbd>R</kbd></div>
+    <div class="kbd-row"><span class="desc">Switch tab</span><kbd>Tab</kbd></div>
+    <div class="kbd-row"><span class="desc">Show shortcuts</span><kbd>?</kbd></div>
+    <div class="kbd-row"><span class="desc">Close</span><kbd>Esc</kbd></div>
+  </div>
+</div>
+
+<script>
+// =============== EMBEDDED DATA ===============
+const RAW = {"d1": {"id": "d1", "label": "European Media Outlets", "subtitle": "Independent media organisations across Europe", "countries": [{"name": "Belgium", "lat": 50.8503, "lon": 4.3517, "total": 22, "dom_cat": "Other", "cats": {"Other": 22}, "secondary": {}, "scope": {}, "orgs": [{"name": "EAVI - Media Literacy for Citizenship", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "ADIM (L’Association pour la Diversité et l’Inclusion dans les Médias)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Civitates", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Commons DB", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "EU Disinfo Lab", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Euractiv", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "European Association of Daily Newspapers in Minority and Regional Languages", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "European Commission", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "European Federation of Journalists (EFJ)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "European Newspaper Publishers' Association (ENPA)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "European Publishers Council (EPC)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Europod", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Future Media Hubs", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Gaia-X", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Greens/EFA", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "INTERFACED - Interfaces for Democratic Participation", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Journalismfund Europe", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "News Media Europe", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "POLITICO Europe", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "University of Antwerp", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Voices - European Festival of Journalism and Media Literacy", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Wikimedia Europe", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Germany", "lat": 52.52, "lon": 13.405, "total": 17, "dom_cat": "Other", "cats": {"Other": 17}, "secondary": {}, "scope": {}, "orgs": [{"name": "AlgorithmWatch", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Corint Media", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Correctiv", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "dpa-Infocom", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Full Stack Journalism", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "interface", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Media Forward Fund", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Netzwerk Recherche", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Publix", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Tactical Tech", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "The German Press Agency (dpa)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Think-it", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "University of Fribourg", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "University of Münster", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Wikimedia Deutschland", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "n-OST (Network for Crossborder Journalism)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Forum for non-profit journalism (FGJ)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Netherlands", "lat": 52.3676, "lon": 4.9041, "total": 16, "dom_cat": "Other", "cats": {"Other": 16}, "secondary": {}, "scope": {}, "orgs": [{"name": "Are We Europe", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Arena for Journalism in Europe", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "AVROTROS", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "European Cultural Foundation (ECF)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "European Journalism Centre (EJC)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Liccium", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Limelight Foundation", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Mediahuis", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "NPO", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Open Future", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Pluralis", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Stichting Democratie en Media (SDM)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "The Journalism Value Project", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "University of Amsterdam", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "University of Groningen", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "VRT", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Spain", "lat": 40.4168, "lon": -3.7038, "total": 14, "dom_cat": "Other", "cats": {"Other": 14}, "secondary": {}, "scope": {}, "orgs": [{"name": "Agencia EFE", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "AMIC - Associació de Mitjans d'Informació i Comunicació", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Critic", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Diari de Barcelona", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "El Salto", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Fundacion Civio", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "La Directa", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "La Marea", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Maldita", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "RTVE", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "TEMS European Media Data Space", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Universitat de València", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Verificat", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Vilaweb", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "France", "lat": 48.8566, "lon": 2.3522, "total": 11, "dom_cat": "Other", "cats": {"Other": 11}, "secondary": {}, "scope": {}, "orgs": [{"name": "Arty Farty", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Association for Data Intermediation (AID)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Euronews", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "European Fact-Checking Standards Network (EFCSN)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Human Development Research Initiative (HDRI)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "K7 Technosensible", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Médianes", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Reset!", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Sphera Network", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "StreetPress", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Zebra Production", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "UK", "lat": 51.5074, "lon": -0.1278, "total": 7, "dom_cat": "Other", "cats": {"Other": 7}, "secondary": {}, "scope": {}, "orgs": [{"name": "Article 19", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "BBC", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Media Reform Coalition", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Public Interest News Foundation", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Reuters Institute for the Study of Journalism", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "The Guardian", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "The Journalism AI Project, Polis", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Greece", "lat": 37.9838, "lon": 23.7275, "total": 6, "dom_cat": "Other", "cats": {"Other": 6}, "secondary": {}, "scope": {}, "orgs": [{"name": "AthensLive", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Peace Journalism Lab, Aristotle University of Thessaloniki", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Popaganda", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Qurio", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Solomon", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "The European AI Media Observatory", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Italy", "lat": 41.9028, "lon": 12.4964, "total": 6, "dom_cat": "Other", "cats": {"Other": 6}, "secondary": {}, "scope": {}, "orgs": [{"name": "Centre for Media Pluralism and Media", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "EDMO - European Digital Media Observatory", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Investigative Reporting Project Italy (IRPI)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "MIDAS (European Association of Daily Newspapers in Minority and Regional Languages)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "RAI", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "VD News", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Poland", "lat": 52.2297, "lon": 21.0122, "total": 4, "dom_cat": "Other", "cats": {"Other": 4}, "secondary": {}, "scope": {}, "orgs": [{"name": "Eurozet", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Krytyka Polityczna", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Magazyn Opinii / Pismo Foundation", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Rzeczpospolita", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Switzerland", "lat": 46.948, "lon": 7.4474, "total": 4, "dom_cat": "Other", "cats": {"Other": 4}, "secondary": {}, "scope": {}, "orgs": [{"name": "Institute for Reporters’ Freedom and Safety (IRFS)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "European Association of News Agencies (EANA)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "European Broadcasting Union (EBU)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "The European Alliance of News Agencies (EANA)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Hungary", "lat": 47.4979, "lon": 19.0402, "total": 3, "dom_cat": "Other", "cats": {"Other": 3}, "secondary": {}, "scope": {}, "orgs": [{"name": "444", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Atlatszo", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Center for Sustainable Media", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Portugal", "lat": 38.7223, "lon": -9.1393, "total": 3, "dom_cat": "Other", "cats": {"Other": 3}, "secondary": {}, "scope": {}, "orgs": [{"name": "European Media and Information Fund (EMIF)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Journalism Science Alliance (JSA)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "The Newsroom", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Austria", "lat": 48.2082, "lon": 16.3738, "total": 2, "dom_cat": "Other", "cats": {"Other": 2}, "secondary": {}, "scope": {}, "orgs": [{"name": "ERSTE Foundation", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "OSCE Representative on Freedom of the Media", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Azerbaijan", "lat": 40.4093, "lon": 49.8671, "total": 2, "dom_cat": "Other", "cats": {"Other": 2}, "secondary": {}, "scope": {}, "orgs": [{"name": "Abzas Media", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Mikroskop Media", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Denmark", "lat": 55.6761, "lon": 12.5683, "total": 2, "dom_cat": "Other", "cats": {"Other": 2}, "secondary": {}, "scope": {}, "orgs": [{"name": "Danish Press Association CMO", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "The Danish Rights Alliance", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Finland", "lat": 60.1699, "lon": 24.9384, "total": 2, "dom_cat": "Other", "cats": {"Other": 2}, "secondary": {}, "scope": {}, "orgs": [{"name": "Finnish Broadcasting Company", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "The Union of Journalists in Finland - journalistiliitto", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "North Macedonia", "lat": 41.9981, "lon": 21.4254, "total": 2, "dom_cat": "Other", "cats": {"Other": 2}, "secondary": {}, "scope": {}, "orgs": [{"name": "Institute for Media Analysis (IMA)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}, {"name": "Investigative Reporting Lab (north Macedonia)", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Albania", "lat": 41.3275, "lon": 19.8187, "total": 1, "dom_cat": "Other", "cats": {"Other": 1}, "secondary": {}, "scope": {}, "orgs": [{"name": "Koha", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Bosnia and Herzegovina", "lat": 43.8563, "lon": 18.4131, "total": 1, "dom_cat": "Other", "cats": {"Other": 1}, "secondary": {}, "scope": {}, "orgs": [{"name": "Balkan Investigative Reporting Network", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Bulgaria", "lat": 42.7339, "lon": 25.4858, "total": 1, "dom_cat": "Other", "cats": {"Other": 1}, "secondary": {}, "scope": {}, "orgs": [{"name": "BROD - Bulgarian-Romanian Observatory of Digital Media", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Croatia", "lat": 45.815, "lon": 15.9819, "total": 1, "dom_cat": "Other", "cats": {"Other": 1}, "secondary": {}, "scope": {}, "orgs": [{"name": "Oštro", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Estonia", "lat": 59.437, "lon": 24.7536, "total": 1, "dom_cat": "Other", "cats": {"Other": 1}, "secondary": {}, "scope": {}, "orgs": [{"name": "Media and Journalism Research Centre", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Ireland", "lat": 53.3498, "lon": -6.2603, "total": 1, "dom_cat": "Other", "cats": {"Other": 1}, "secondary": {}, "scope": {}, "orgs": [{"name": "News Brands Ireland", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Norway", "lat": 59.9139, "lon": 10.7522, "total": 1, "dom_cat": "Other", "cats": {"Other": 1}, "secondary": {}, "scope": {}, "orgs": [{"name": "Resilient Media for Democracy", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Romania", "lat": 44.4268, "lon": 26.1025, "total": 1, "dom_cat": "Other", "cats": {"Other": 1}, "secondary": {}, "scope": {}, "orgs": [{"name": "Átlátszó Erdély", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "Slovakia", "lat": 48.1486, "lon": 17.1077, "total": 1, "dom_cat": "Other", "cats": {"Other": 1}, "secondary": {}, "scope": {}, "orgs": [{"name": "ZIVE", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}, {"name": "USA", "lat": 39.8283, "lon": -98.5795, "total": 1, "dom_cat": "Other", "cats": {"Other": 1}, "secondary": {}, "scope": {}, "orgs": [{"name": "Gazzetta", "city": "", "cat": "Other", "website": "", "year": null, "scope": []}], "years": []}], "cat_totals": {"Other": 133}, "sec_totals": {}, "sec_by_cat": {"Other": {}}, "scope_totals": {}, "year_series": [], "meta": {"total_orgs": 133, "total_countries": 27, "cats": ["Other"], "secs": [], "sec_label": "Revenue Streams", "cat_label": "Legal Category"}}, "d2": {"id": "d2", "label": "Wider Media Ecosystem", "subtitle": "CSOs, think tanks, tech & ecosystem organisations", "countries": [{"name": "USA", "lat": 39.8283, "lon": -98.5795, "total": 39, "dom_cat": "CSO", "cats": {"Media association/fund": 8, "Ecosystem": 2, "Media outlet": 4, "CSO": 10, "Project/Initiative": 2, "Mid/Small Tech": 8, "Big Tech": 2, "Research/Think Tank": 3}, "secondary": {"Coalitions and advocacy": 10, "Licensing/commercial deals": 4, "Preference signalling": 4, "Research and audits": 5, "Technical gatekeeping": 7, "Funds/Investment": 3, "Media/journalism production": 2, "Business models": 2, "Social norms and literacy": 1, "Visibility tools": 1, "Paid data services": 1}, "scope": {}, "orgs": [{"name": "ACOS Alliance", "city": "", "cat": "Media association/fund", "website": "https://www.acosalliance.org/", "focus": ["Coalitions and advocacy"], "region": "Global"}, {"name": "Alliance for Responsible Data Collection (ARDC)", "city": "", "cat": "Ecosystem", "website": "https://responsibledatacollection.org/", "focus": ["Coalitions and advocacy"], "region": "Global"}, {"name": "Associated Press", "city": "", "cat": "Media outlet", "website": "https://www.ap.org/intelligence/", "focus": ["Licensing/commercial deals"], "region": "North America"}, {"name": "Authors Alliance", "city": "", "cat": "CSO", "website": "https://www.authorsalliance.org/2025/10/02/ai-authorship-and-the-public-interest-grant-recipients/", "focus": ["Coalitions and advocacy"], "region": "North America"}, {"name": "CC Signals", "city": "", "cat": "Project/Initiative", "website": "https://creativecommons.org/2025/06/25/introducing-cc-signals-a-new-social-contract-for-the-age-of-ai/", "focus": ["Preference signalling"], "region": "Global"}, {"name": "Center for International Media Assistance", "city": "", "cat": "Ecosystem", "website": "https://www.cima.ned.org/", "focus": ["Coalitions and advocacy", "Research and audits"], "region": "Global South"}, {"name": "Cloudflare", "city": "", "cat": "Mid/Small Tech", "website": "https://www.cloudflare.com/en-gb/", "focus": ["Technical gatekeeping"], "region": "Global"}, {"name": "Committee to Protect Journalists", "city": "", "cat": "CSO", "website": "https://cpj.org/", "focus": ["Research and audits"], "region": "Global"}, {"name": "Creative Commons", "city": "", "cat": "CSO", "website": "https://creativecommons.org/", "focus": ["Preference signalling"], "region": "Global"}, {"name": "Devex", "city": "", "cat": "Media outlet", "website": "https://www.devex.com/", "focus": ["Funds/Investment"], "region": "Global South"}, {"name": "Disney", "city": "", "cat": "Big Tech", "website": "http://disneycareers.com", "focus": ["Licensing/commercial deals"], "region": "Global"}, {"name": "Drexel University", "city": "", "cat": "Research/Think Tank", "website": "https://drexel.edu/", "focus": ["Research and audits"], "region": "North America"}, {"name": "Fairly Trained", "city": "", "cat": "CSO", "website": "https://www.fairlytrained.org/", "focus": ["Preference signalling"], "region": "Global"}, {"name": "Gazzetta", "city": "", "cat": "Research/Think Tank", "website": "https://www.gazzetta.xyz/about/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "GistAI", "city": "", "cat": "Mid/Small Tech", "website": "https://gist.ai/", "focus": ["Technical gatekeeping"], "region": "Global"}, {"name": "Global Investigative Journalism Network (GIJN)", "city": "", "cat": "Media association/fund", "website": "https://gijn.org/", "focus": ["Coalitions and advocacy"], "region": "Global"}, {"name": "Google News Initiative", "city": "", "cat": "Big Tech", "website": "https://newsinitiative.withgoogle.com/en-gb/", "focus": ["Business models"], "region": "Global"}, {"name": "International Consortium of Investigative Journalists", "city": "", "cat": "Media association/fund", "website": "https://www.icij.org/", "focus": ["Social norms and literacy"], "region": "Global"}, {"name": "Media Development Investment Fund", "city": "", "cat": "Media association/fund", "website": "https://www.mdif.org/", "focus": ["Business models"], "region": "Global"}, {"name": "Media Impact Funders", "city": "", "cat": "Media association/fund", "website": "https://mediaimpactfunders.org/", "focus": ["Funds/Investment"], "region": "North America"}, {"name": "Meedan", "city": "", "cat": "Mid/Small Tech", "website": "https://meedan.com/operations/statement-on-independence", "focus": ["Technical gatekeeping"], "region": "Global"}, {"name": "MIT Technology Review", "city": "", "cat": "Media outlet", "website": "https://www.technologyreview.com/", "focus": ["Media/journalism production"], "region": "North America"}, {"name": "National Endowment for Democracy", "city": "", "cat": "Media association/fund", "website": "https://www.ned.org/", "focus": ["Coalitions and advocacy"], "region": "Global"}, {"name": "News/Media Alliance", "city": "", "cat": "CSO", "website": "https://www.newsmediaalliance.org/google-ai-mode-statement/", "focus": ["Coalitions and advocacy"], "region": "North America"}, {"name": "Nieman Journalist Lab Harvard", "city": "", "cat": "Research/Think Tank", "website": "https://www.niemanlab.org/", "focus": ["Research and audits"], "region": "North America"}, {"name": "Open Markets Institute", "city": "", "cat": "CSO", "website": "https://www.openmarketsinstitute.org/", "focus": ["Coalitions and advocacy"], "region": "North America"}, {"name": "Openmined", "city": "", "cat": "CSO", "website": "https://openmined.org/", "focus": ["Technical gatekeeping"], "region": "Global"}, {"name": "ProRata", "city": "", "cat": "Mid/Small Tech", "website": "https://prorata.ai/", "focus": ["Technical gatekeeping"], "region": "Global"}, {"name": "Public Knowledge", "city": "", "cat": "CSO", "website": "https://publicknowledge.org/", "focus": ["Coalitions and advocacy"], "region": "North America"}, {"name": "RadicalxChange", "city": "", "cat": "CSO", "website": "https://www.radicalxchange.org/#", "focus": ["Research and audits"], "region": "Global"}, {"name": "Really Simple Licensing", "city": "", "cat": "Project/Initiative", "website": "https://rslstandard.org/", "focus": ["Preference signalling"], "region": "Global"}, {"name": "ScalePost", "city": "", "cat": "Mid/Small Tech", "website": "https://www.scalepost.ai/", "focus": ["Visibility tools"], "region": "Global"}, {"name": "Siegel Family Endowment", "city": "", "cat": "Media association/fund", "website": "https://www.siegelendowment.org/", "focus": ["Funds/Investment"], "region": "North America"}, {"name": "Sphere", "city": "", "cat": "Mid/Small Tech", "website": "https://www.getsphere.ai/", "focus": ["Technical gatekeeping"], "region": "Global"}, {"name": "The Associated Press", "city": "", "cat": "Media outlet", "website": "https://apnews.com/", "focus": ["Licensing/commercial deals"], "region": "Global"}, {"name": "The Brattle Group", "city": "", "cat": "Mid/Small Tech", "website": "https://www.brattle.com/wp-content/uploads/2024/04/Brattle__TME-Brochure.pdf", "focus": ["Licensing/commercial deals"], "region": "North America"}, {"name": "The Online News Association (ONA)", "city": "", "cat": "Media association/fund", "website": "https://journalists.org/", "focus": ["Coalitions and advocacy"], "region": "North America"}, {"name": "Tollbit", "city": "", "cat": "Mid/Small Tech", "website": "https://tollbit.com/", "focus": ["Technical gatekeeping"], "region": "Global"}, {"name": "Wikimedia Entreprise", "city": "", "cat": "CSO", "website": "https://enterprise.wikimedia.com/", "focus": ["Paid data services"], "region": "Global"}], "years": [], "is_region": false}, {"name": "Belgium", "lat": 50.8503, "lon": 4.3517, "total": 24, "dom_cat": "Media association/fund", "cats": {"CSO": 3, "Media association/fund": 10, "Project/Initiative": 4, "Media outlet": 3, "Ecosystem": 3, "Research/Think Tank": 1}, "secondary": {"Social norms and literacy": 4, "Funds/Investment": 2, "Preference signalling": 1, "Research and audits": 3, "Media/journalism production": 3, "Coalitions and advocacy": 7, "Regulatory and legal": 3, "Business models": 1, "Data Collaborative": 1}, "scope": {}, "orgs": [{"name": "EAVI - Media Literacy for Citizenship", "city": "", "cat": "CSO", "website": "https://eavi.eu/", "focus": ["Social norms and literacy"], "region": "Europe"}, {"name": "ADIM (L’Association pour la Diversité et l’Inclusion dans les Médias)", "city": "", "cat": "Media association/fund", "website": "https://adimdiversitemedia.be/", "focus": ["Social norms and literacy"], "region": "Europe"}, {"name": "Civitates", "city": "", "cat": "Media association/fund", "website": "https://civitates-eu.org/", "focus": ["Funds/Investment"], "region": "Europe"}, {"name": "Commons DB", "city": "", "cat": "Project/Initiative", "website": "https://www.commonsdb.org/blog/commonsdb-a-foundation-for-transparent-digital-rights-information/", "focus": ["Preference signalling"], "region": "Europe"}, {"name": "EU Disinfo Lab", "city": "", "cat": "CSO", "website": "https://www.disinfo.eu/", "focus": ["Research and audits"], "region": "Europe"}, {"name": "Euractiv", "city": "", "cat": "Media outlet", "website": "https://www.euractiv.com/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "European Association of Daily Newspapers in Minority and Regional Languages", "city": "", "cat": "Media association/fund", "website": "https://www.midas-press.org/", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "European Commission", "city": "", "cat": "Ecosystem", "website": "https://commission.europa.eu/index_en", "focus": ["Regulatory and legal"], "region": "Europe"}, {"name": "European Federation of Journalists (EFJ)", "city": "", "cat": "Media association/fund", "website": "https://europeanjournalists.org/", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "European Newspaper Publishers' Association (ENPA)", "city": "", "cat": "Media association/fund", "website": "https://www.enpa.eu/", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "European Publishers Council (EPC)", "city": "", "cat": "Media association/fund", "website": "https://www.epceurope.eu/", "focus": ["Regulatory and legal"], "region": "Europe"}, {"name": "Europod", "city": "", "cat": "Media outlet", "website": "https://www.europod.eu/about/", "focus": ["Social norms and literacy"], "region": "Europe"}, {"name": "Future Media Hubs", "city": "", "cat": "Media association/fund", "website": "https://www.futuremediahubs.com/", "focus": ["Business models"], "region": "Europe"}, {"name": "Gaia-X", "city": "", "cat": "Ecosystem", "website": "https://gaia-x.eu/", "focus": ["Data Collaborative"], "region": "Europe"}, {"name": "GFMD Global Forum for Media Development", "city": "", "cat": "Media association/fund", "website": "https://gfmd.info/", "focus": ["Coalitions and advocacy"], "region": "Global"}, {"name": "Greens/EFA", "city": "", "cat": "Ecosystem", "website": "https://www.greens-efa.eu/en/", "focus": ["Regulatory and legal"], "region": "Europe"}, {"name": "INTERFACED - Interfaces for Democratic Participation", "city": "", "cat": "Project/Initiative", "website": "https://www.linkedin.com/company/interfaced-eu/posts/?feedView=all", "focus": ["Research and audits"], "region": "Europe"}, {"name": "Journalism Cloud Alliance (JCA) - by GFMD", "city": "", "cat": "Project/Initiative", "website": "https://gfmd.info/cloud-alliance/", "focus": ["Coalitions and advocacy"], "region": "Global"}, {"name": "Journalismfund Europe", "city": "", "cat": "Media association/fund", "website": "https://www.journalismfund.eu/", "focus": ["Funds/Investment", "Coalitions and advocacy"], "region": "Europe"}, {"name": "News Media Europe", "city": "", "cat": "Media association/fund", "website": "https://www.newsmediaeurope.eu/news/european-commissions-ai-transparency-template-facilitates-theft-by-ai-companies/", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "POLITICO Europe", "city": "", "cat": "Media outlet", "website": "https://www.politico.eu/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "University of Antwerp", "city": "", "cat": "Research/Think Tank", "website": "https://www.uantwerpen.be/en/", "focus": ["Research and audits"], "region": "Europe"}, {"name": "Voices - European Festival of Journalism and Media Literacy", "city": "", "cat": "Project/Initiative", "website": "https://www.linkedin.com/company/voices-european-festival-of-journalism-and-media-literacy/", "focus": ["Social norms and literacy"], "region": "Europe"}, {"name": "Wikimedia Europe", "city": "", "cat": "CSO", "website": "https://wikimedia.brussels/", "focus": ["Media/journalism production"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Germany", "lat": 52.52, "lon": 13.405, "total": 21, "dom_cat": "CSO", "cats": {"CSO": 6, "Media outlet": 5, "Media association/fund": 6, "Project/Initiative": 1, "Mid/Small Tech": 1, "Research/Think Tank": 2}, "secondary": {"Research and audits": 5, "Coalitions and advocacy": 5, "Media/journalism production": 3, "Paid data services": 1, "Social norms and literacy": 3, "Funds/Investment": 3, "Business models": 1, "Data Collaborative": 1}, "scope": {}, "orgs": [{"name": "AlgorithmWatch", "city": "", "cat": "CSO", "website": "https://algorithmwatch.org/en/", "focus": ["Research and audits"], "region": "Europe"}, {"name": "Corint Media", "city": "", "cat": "CSO", "website": "https://www.corint-media.com/en/home/", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "Correctiv", "city": "", "cat": "Media outlet", "website": "https://correctiv.org/en/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "dpa-Infocom", "city": "", "cat": "Media outlet", "website": "https://www.dpa.com/en/about-dpa/group", "focus": ["Paid data services"], "region": "Europe"}, {"name": "DW Akademie", "city": "", "cat": "Media outlet", "website": "https://akademie.dw.com/en/home/s-9519", "focus": ["Social norms and literacy"], "region": "Global"}, {"name": "Forum for non-profit journalism (FGJ)", "city": "", "cat": "Media association/fund", "website": "https://forum-gemeinnuetziger-journalismus.de/", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "Full Stack Journalism", "city": "", "cat": "CSO", "website": "https://fullstackjournalism.eu/", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "Global Alliance for Media Innovation (within WAN-IFRA)", "city": "", "cat": "Project/Initiative", "website": "https://gfmd.info/", "focus": ["Funds/Investment"], "region": "Global"}, {"name": "interface", "city": "", "cat": "CSO", "website": "https://www.interface-eu.org/", "focus": ["Research and audits"], "region": "Europe"}, {"name": "Media Forward Fund", "city": "", "cat": "Media association/fund", "website": "https://www.mediaforwardfund.org/", "focus": ["Funds/Investment"], "region": "Europe"}, {"name": "n-OST (Network for Crossborder Journalism)", "city": "", "cat": "Media association/fund", "website": "https://n-ost.org/about-nost", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "Netzwerk Recherche", "city": "", "cat": "Media association/fund", "website": "https://netzwerkrecherche.org/", "focus": ["Funds/Investment", "Research and audits"], "region": "Europe"}, {"name": "Publix", "city": "", "cat": "Media association/fund", "website": "https://www.publix.de/en", "focus": ["Social norms and literacy"], "region": "Europe"}, {"name": "Seek Initiative", "city": "", "cat": "CSO", "website": "https://seekinitiative.org/", "focus": ["Social norms and literacy"], "region": "Global"}, {"name": "Tactical Tech", "city": "", "cat": "CSO", "website": "https://tacticaltech.org/", "focus": ["Business models"], "region": "Europe"}, {"name": "The German Press Agency (dpa)", "city": "", "cat": "Media outlet", "website": "https://www.dpa.com/en/drive", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "The World Association of News Publishers (WAN-IFRA)", "city": "", "cat": "Media association/fund", "website": "https://wan-ifra.org/", "focus": ["Coalitions and advocacy"], "region": "Global"}, {"name": "Think-it", "city": "", "cat": "Mid/Small Tech", "website": "https://www.think-it.io/about-us/", "focus": ["Data Collaborative"], "region": "Europe"}, {"name": "University of Fribourg", "city": "", "cat": "Research/Think Tank", "website": "https://www.unifr.ch/home/en/", "focus": ["Research and audits"], "region": "Europe"}, {"name": "University of Münster", "city": "", "cat": "Research/Think Tank", "website": "https://www.uni-muenster.de/en/", "focus": ["Research and audits"], "region": "Europe"}, {"name": "Wikimedia Deutschland", "city": "", "cat": "Media outlet", "website": "https://de.wikipedia.org/wiki/Wikipedia:Hauptseite", "focus": ["Media/journalism production"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Netherlands", "lat": 52.3676, "lon": 4.9041, "total": 18, "dom_cat": "Media outlet", "cats": {"Research/Think Tank": 3, "CSO": 3, "Media outlet": 5, "Media association/fund": 5, "Mid/Small Tech": 1, "Project/Initiative": 1}, "secondary": {"Research and audits": 4, "Social norms and literacy": 1, "Coalitions and advocacy": 4, "Media/journalism production": 4, "Funds/Investment": 5, "Technical gatekeeping": 1}, "scope": {}, "orgs": [{"name": "AI, Media and Democracy Lab (University of Amsterdam)", "city": "", "cat": "Research/Think Tank", "website": "https://www.aim4dem.nl/", "focus": ["Research and audits"], "region": "Global"}, {"name": "Are We Europe", "city": "", "cat": "CSO", "website": "https://areweeurope.com/", "focus": ["Social norms and literacy"], "region": "Europe"}, {"name": "Arena for Journalism in Europe", "city": "", "cat": "CSO", "website": "https://journalismarena.eu/", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "AVROTROS", "city": "", "cat": "Media outlet", "website": "https://www.avrotros.nl/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "European Cultural Foundation (ECF)", "city": "", "cat": "Media association/fund", "website": "https://culturalfoundation.eu/", "focus": ["Funds/Investment"], "region": "Europe"}, {"name": "European Journalism Centre (EJC)", "city": "", "cat": "Media association/fund", "website": "https://ejc.net/", "focus": ["Funds/Investment"], "region": "Europe"}, {"name": "Liccium", "city": "", "cat": "Mid/Small Tech", "website": "https://liccium.com/", "focus": ["Technical gatekeeping"], "region": "Europe"}, {"name": "Limelight Foundation", "city": "", "cat": "Media association/fund", "website": "https://limelight.foundation/", "focus": ["Funds/Investment", "Coalitions and advocacy"], "region": "Europe"}, {"name": "Mediahuis", "city": "", "cat": "Media outlet", "website": "https://www.mediahuis.com/en/about-us/who-we-are/", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "NPO", "city": "", "cat": "Media outlet", "website": "https://npo.nl", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "Open Future", "city": "", "cat": "CSO", "website": "https://openfuture.eu/", "focus": ["Research and audits"], "region": "Europe"}, {"name": "Pluralis", "city": "", "cat": "Media association/fund", "website": "https://www.pluralis.media/", "focus": ["Funds/Investment"], "region": "Europe"}, {"name": "RNW Media", "city": "", "cat": "Media outlet", "website": "http://www.rnw.media", "focus": ["Media/journalism production"], "region": "Global"}, {"name": "Stichting Democratie en Media (SDM)", "city": "", "cat": "Media association/fund", "website": "https://sdm.nl/", "focus": ["Funds/Investment"], "region": "Europe"}, {"name": "The Journalism Value Project", "city": "", "cat": "Project/Initiative", "website": "https://referencecircle.eu/journalism-value-project/", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "University of Amsterdam", "city": "", "cat": "Research/Think Tank", "website": "https://www.uva.nl/en", "focus": ["Research and audits"], "region": "Europe"}, {"name": "University of Groningen", "city": "", "cat": "Research/Think Tank", "website": "https://www.rug.nl/?lang=en", "focus": ["Research and audits"], "region": "Europe"}, {"name": "VRT", "city": "", "cat": "Media outlet", "website": "https://www.vrtinternational.com/about", "focus": ["Media/journalism production"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "UK", "lat": 51.5074, "lon": -0.1278, "total": 17, "dom_cat": "CSO", "cats": {"CSO": 5, "Media outlet": 2, "Mid/Small Tech": 2, "Research/Think Tank": 4, "Media association/fund": 3, "Project/Initiative": 1}, "secondary": {"Regulatory and legal": 1, "Media/journalism production": 2, "Social norms and literacy": 2, "Visibility tools": 1, "Funds/Investment": 1, "Research and audits": 4, "Coalitions and advocacy": 4, "Journalism tools": 2, "Licensing/commercial deals": 1}, "scope": {}, "orgs": [{"name": "Article 19", "city": "", "cat": "CSO", "website": "https://www.article19.org/", "focus": ["Regulatory and legal"], "region": "Europe"}, {"name": "BBC", "city": "", "cat": "Media outlet", "website": "https://www.bbc.com/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "BBC Media Action", "city": "", "cat": "CSO", "website": "https://www.bbc.co.uk/mediaaction/", "focus": ["Social norms and literacy"], "region": "Global South"}, {"name": "Echobox", "city": "", "cat": "Mid/Small Tech", "website": "https://www.echobox.com/social-features", "focus": ["Visibility tools"], "region": "Global"}, {"name": "Internews", "city": "", "cat": "CSO", "website": "https://internews.org/", "focus": ["Funds/Investment", "Research and audits"], "region": "Global"}, {"name": "King's College London", "city": "", "cat": "Research/Think Tank", "website": "https://www.kcl.ac.uk/", "focus": ["Research and audits"], "region": "Global"}, {"name": "Media Diversity Institute", "city": "", "cat": "Media association/fund", "website": "https://www.media-diversity.org/", "focus": ["Social norms and literacy"], "region": "Global"}, {"name": "Media Reform Coalition", "city": "", "cat": "Media association/fund", "website": "nan", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "Open Minds", "city": "", "cat": "Mid/Small Tech", "website": "https://www.linkedin.com/company/openmindsglobal/", "focus": ["Coalitions and advocacy"], "region": "Global"}, {"name": "POLIS-LSE / JournalismAI", "city": "", "cat": "Research/Think Tank", "website": "https://www.lse.ac.uk/media-and-communications/polis/JournalismAI", "focus": ["Journalism tools"], "region": "Global"}, {"name": "Public Interest News Foundation", "city": "", "cat": "CSO", "website": "https://www.publicinterestnews.org.uk/", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "Public Media Alliance", "city": "", "cat": "Media association/fund", "website": "https://www.publicmediaalliance.org/about-us/", "focus": ["Coalitions and advocacy"], "region": "Global"}, {"name": "Responsible Innovation for Public Media Futures", "city": "", "cat": "Research/Think Tank", "website": "https://www.bbc.co.uk/rd/projects/responsible-innovation-centre", "focus": ["Research and audits"], "region": "Global"}, {"name": "Reuters Institute for the Study of Journalism", "city": "", "cat": "Research/Think Tank", "website": "https://rslstandard.org/about", "focus": ["Research and audits"], "region": "Europe"}, {"name": "The Guardian", "city": "", "cat": "Media outlet", "website": "https://www.theguardian.com/gnm-press-office/2025/feb/14/guardian-media-group-announces-strategic-partnership-with-openai", "focus": ["Licensing/commercial deals"], "region": "Europe"}, {"name": "The Journalism AI Project, Polis", "city": "", "cat": "Project/Initiative", "website": "https://www.journalismai.info/", "focus": ["Journalism tools"], "region": "Europe"}, {"name": "Thomson Foundation", "city": "", "cat": "CSO", "website": "https://www.thomsonfoundation.org/", "focus": ["Media/journalism production"], "region": "Global"}], "years": [], "is_region": false}, {"name": "France", "lat": 48.8566, "lon": 2.3522, "total": 14, "dom_cat": "Media outlet", "cats": {"CSO": 2, "Ecosystem": 2, "Media outlet": 5, "Media association/fund": 3, "Research/Think Tank": 2}, "secondary": {"Social norms and literacy": 3, "Data Collaborative": 1, "Media/journalism production": 3, "Research and audits": 2, "Coalitions and advocacy": 3, "Funds/Investment": 1, "Business models": 1, "Regulatory and legal": 1}, "scope": {}, "orgs": [{"name": "Arty Farty", "city": "", "cat": "CSO", "website": "https://arty-farty.eu/", "focus": ["Social norms and literacy"], "region": "Europe"}, {"name": "Association for Data Intermediation (AID)", "city": "", "cat": "Ecosystem", "website": "https://data-intermediation.eu/", "focus": ["Data Collaborative"], "region": "Europe"}, {"name": "Euronews", "city": "", "cat": "Media outlet", "website": "https://www.euronews.com/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "European Fact-Checking Standards Network (EFCSN)", "city": "", "cat": "Media association/fund", "website": "https://efcsn.com/", "focus": ["Social norms and literacy"], "region": "Europe"}, {"name": "FID Forum on Information and Democracy", "city": "", "cat": "CSO", "website": "https://informationdemocracy.org/", "focus": ["Research and audits"], "region": "Global"}, {"name": "Human Development Research Initiative (HDRI)", "city": "", "cat": "Research/Think Tank", "website": "https://www.hdevri.org/", "focus": ["Research and audits"], "region": "Europe"}, {"name": "IFPIM The International Fund for Public Interest Media", "city": "", "cat": "Media association/fund", "website": "https://ifpim.org/ & https://www.ctrl-j.info/ & https://ifpim.org/resources/new-partnership-launched-to-ensure-linguistic-diversity-and-broad-journalistic-content-for-ai-models/", "focus": ["Coalitions and advocacy", "Funds/Investment"], "region": "Global South"}, {"name": "K7 Technosensible", "city": "", "cat": "Media outlet", "website": "https://k7-technosensible.notion.site/", "focus": ["Social norms and literacy"], "region": "Europe"}, {"name": "Médianes", "city": "", "cat": "Research/Think Tank", "website": "https://www.medianes.org/", "focus": ["Business models"], "region": "Europe"}, {"name": "OECD", "city": "", "cat": "Ecosystem", "website": "https://www.oecd.org/en.html", "focus": ["Regulatory and legal"], "region": "Regional"}, {"name": "Reset!", "city": "", "cat": "Media association/fund", "website": "https://reset-network.eu/", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "Sphera Network", "city": "", "cat": "Media outlet", "website": "https://spheranetwork.com/", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "StreetPress", "city": "", "cat": "Media outlet", "website": "https://www.streetpress.com/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "Zebra Production", "city": "", "cat": "Media outlet", "website": "https://zebra-production.com/en/accueil/", "focus": ["Media/journalism production"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Spain", "lat": 40.4168, "lon": -3.7038, "total": 14, "dom_cat": "Media outlet", "cats": {"Media outlet": 9, "Media association/fund": 1, "Mid/Small Tech": 1, "CSO": 1, "Ecosystem": 1, "Research/Think Tank": 1}, "secondary": {"Media/journalism production": 8, "Coalitions and advocacy": 1, "Research and audits": 2, "Social norms and literacy": 2, "Data Collaborative": 1}, "scope": {}, "orgs": [{"name": "Agencia EFE", "city": "", "cat": "Media outlet", "website": "https://efe.com/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "AMIC - Associació de Mitjans d'Informació i Comunicació", "city": "", "cat": "Media association/fund", "website": "https://www.amic.media/default.php", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "Critic", "city": "", "cat": "Mid/Small Tech", "website": "https://www.elcritic.cat/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "Diari de Barcelona", "city": "", "cat": "Media outlet", "website": "https://www.diaridebarcelona.cat/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "El Salto", "city": "", "cat": "Media outlet", "website": "https://www.elsaltodiario.com/ -- info@elsaltodiario.com", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "Fundacion Civio", "city": "", "cat": "CSO", "website": "https://civio.es/", "focus": ["Research and audits"], "region": "Europe"}, {"name": "La Directa", "city": "", "cat": "Media outlet", "website": "https://directa.cat/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "La Marea", "city": "", "cat": "Media outlet", "website": "https://www.lamarea.com/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "Maldita", "city": "", "cat": "Media outlet", "website": "https://maldita.es/", "focus": ["Social norms and literacy"], "region": "Europe"}, {"name": "RTVE", "city": "", "cat": "Media outlet", "website": "https://www.rtve.es/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "TEMS European Media Data Space", "city": "", "cat": "Ecosystem", "website": "https://tems-dataspace.eu/about/", "focus": ["Data Collaborative"], "region": "Europe"}, {"name": "Universitat de València", "city": "", "cat": "Research/Think Tank", "website": "https://www.uv.es/uvweb/college/en/university-valencia-1285845048380.html", "focus": ["Research and audits"], "region": "Europe"}, {"name": "Verificat", "city": "", "cat": "Media outlet", "website": "https://www.verificat.cat/", "focus": ["Social norms and literacy"], "region": "Europe"}, {"name": "Vilaweb", "city": "", "cat": "Media outlet", "website": "https://www.vilaweb.cat/noticies/segueix-vilaweb-a-google-discover-no-deixis-que-lalgorisme-decideixi-per-tu/", "focus": ["Media/journalism production"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Greece", "lat": 37.9838, "lon": 23.7275, "total": 6, "dom_cat": "Media outlet", "cats": {"CSO": 1, "Research/Think Tank": 1, "Media outlet": 2, "Mid/Small Tech": 1, "Project/Initiative": 1}, "secondary": {"Coalitions and advocacy": 1, "Research and audits": 1, "Media/journalism production": 2, "Journalism tools": 2}, "scope": {}, "orgs": [{"name": "AthensLive", "city": "", "cat": "CSO", "website": "http://athenslive.gr/", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "Peace Journalism Lab, Aristotle University of Thessaloniki", "city": "", "cat": "Research/Think Tank", "website": "https://pjl.jour.auth.gr/index.php/en/", "focus": ["Research and audits"], "region": "Europe"}, {"name": "Popaganda", "city": "", "cat": "Media outlet", "website": "https://popaganda.gr/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "Qurio", "city": "", "cat": "Mid/Small Tech", "website": "https://www.getqurio.com/", "focus": ["Journalism tools"], "region": "Europe"}, {"name": "Solomon", "city": "", "cat": "Media outlet", "website": "https://wearesolomon.com/en/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "The European AI Media Observatory", "city": "", "cat": "Project/Initiative", "website": "https://www.ai4media.eu/", "focus": ["Journalism tools"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Italy", "lat": 41.9028, "lon": 12.4964, "total": 6, "dom_cat": "Media association/fund", "cats": {"Research/Think Tank": 1, "Media association/fund": 3, "Media outlet": 2}, "secondary": {"Research and audits": 1, "Social norms and literacy": 1, "Media/journalism production": 3, "Coalitions and advocacy": 1}, "scope": {}, "orgs": [{"name": "Centre for Media Pluralism and Media", "city": "", "cat": "Research/Think Tank", "website": "https://cmpf.eui.eu/", "focus": ["Research and audits"], "region": "Europe"}, {"name": "EDMO - European Digital Media Observatory", "city": "", "cat": "Media association/fund", "website": "https://edmo.eu/", "focus": ["Social norms and literacy"], "region": "Europe"}, {"name": "Investigative Reporting Project Italy (IRPI)", "city": "", "cat": "Media association/fund", "website": "https://www.irpi.eu/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "MIDAS (European Association of Daily Newspapers in Minority and Regional Languages)", "city": "", "cat": "Media association/fund", "website": "https://www.midas-press.org/en", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "RAI", "city": "", "cat": "Media outlet", "website": "https://www.rai.it/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "VD News", "city": "", "cat": "Media outlet", "website": "https://www.vdnews.it/", "focus": ["Media/journalism production"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Switzerland", "lat": 46.948, "lon": 7.4474, "total": 5, "dom_cat": "Media association/fund", "cats": {"CSO": 2, "Media association/fund": 3}, "secondary": {"Coalitions and advocacy": 4, "Research and audits": 1, "Funds/Investment": 1}, "scope": {}, "orgs": [{"name": "Institute for Reporters’ Freedom and Safety (IRFS)", "city": "", "cat": "CSO", "website": "https://www.irfs.org/vision-mission-strategy/", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "European Association of News Agencies (EANA)", "city": "", "cat": "Media association/fund", "website": "https://newsalliance.org/", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "European Broadcasting Union (EBU)", "city": "", "cat": "Media association/fund", "website": "https://www.ebu.ch/home", "focus": ["Research and audits", "Coalitions and advocacy"], "region": "Europe"}, {"name": "Fondation Hirondelle", "city": "", "cat": "CSO", "website": "https://www.hirondelle.org/fr/", "focus": ["Funds/Investment"], "region": "Global South"}, {"name": "The European Alliance of News Agencies (EANA)", "city": "", "cat": "Media association/fund", "website": "https://newsalliance.org/", "focus": ["Coalitions and advocacy"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Poland", "lat": 52.2297, "lon": 21.0122, "total": 4, "dom_cat": "Media outlet", "cats": {"Media outlet": 4}, "secondary": {"Business models": 1, "Media/journalism production": 3}, "scope": {}, "orgs": [{"name": "Eurozet", "city": "", "cat": "Media outlet", "website": "https://www.linkedin.com/company/grupaeurozet/", "focus": ["Business models"], "region": "Europe"}, {"name": "Krytyka Polityczna", "city": "", "cat": "Media outlet", "website": "https://krytykapolityczna.pl/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "Magazyn Opinii / Pismo Foundation", "city": "", "cat": "Media outlet", "website": "https://magazynpismo.pl/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "Rzeczpospolita", "city": "", "cat": "Media outlet", "website": "https://www.rp.pl/", "focus": ["Media/journalism production"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Portugal", "lat": 38.7223, "lon": -9.1393, "total": 4, "dom_cat": "Media association/fund", "cats": {"Media association/fund": 3, "Mid/Small Tech": 1}, "secondary": {"Funds/Investment": 2, "Coalitions and advocacy": 1, "Journalism tools": 1}, "scope": {}, "orgs": [{"name": "European Media and Information Fund (EMIF)", "city": "", "cat": "Media association/fund", "website": "https://cdn.gulbenkian.pt/emifund/wp-content/uploads/sites/51/2025/07/AnnualReport24-25_DIGITAL_small.pdf", "focus": ["Funds/Investment"], "region": "Europe"}, {"name": "Journalism Science Alliance (JSA)", "city": "", "cat": "Media association/fund", "website": "https://journalismsciencealliance.eu/", "focus": ["Funds/Investment"], "region": "Europe"}, {"name": "Portuguese Press Editors and Publishers Association", "city": "", "cat": "Media association/fund", "website": "http://www.aldusnet.eu/partner/apel-portuguese-publishers-and-booksellers-association/", "focus": ["Coalitions and advocacy"], "region": "nan"}, {"name": "The Newsroom", "city": "", "cat": "Mid/Small Tech", "website": "https://thenewsroom.ai/", "focus": ["Journalism tools"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Austria", "lat": 48.2082, "lon": 16.3738, "total": 3, "dom_cat": "Media association/fund", "cats": {"Media association/fund": 2, "Ecosystem": 1}, "secondary": {"Funds/Investment": 2, "Coalitions and advocacy": 1, "Research and audits": 1}, "scope": {}, "orgs": [{"name": "ERSTE Foundation", "city": "", "cat": "Media association/fund", "website": "https://www.erstestiftung.org/de/", "focus": ["Funds/Investment"], "region": "Europe"}, {"name": "International Press Institute", "city": "", "cat": "Media association/fund", "website": "https://ipi.media/innovation/global-ai-accelerator-for-media/", "focus": ["Coalitions and advocacy", "Funds/Investment"], "region": "Global"}, {"name": "OSCE Representative on Freedom of the Media", "city": "", "cat": "Ecosystem", "website": "https://www.osce.org/representative-on-freedom-of-media", "focus": ["Research and audits"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Hungary", "lat": 47.4979, "lon": 19.0402, "total": 3, "dom_cat": "Media outlet", "cats": {"Media outlet": 2, "CSO": 1}, "secondary": {"Media/journalism production": 2, "Funds/Investment": 1}, "scope": {}, "orgs": [{"name": "444", "city": "", "cat": "Media outlet", "website": "https://444.hu/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "Atlatszo", "city": "", "cat": "Media outlet", "website": "https://atlatszo.hu/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "Center for Sustainable Media", "city": "", "cat": "CSO", "website": "https://www.funds4media.org/", "focus": ["Funds/Investment"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Azerbaijan", "lat": 40.4093, "lon": 49.8671, "total": 2, "dom_cat": "Media outlet", "cats": {"Media outlet": 2}, "secondary": {"Journalism tools": 1, "Media/journalism production": 1}, "scope": {}, "orgs": [{"name": "Abzas Media", "city": "", "cat": "Media outlet", "website": "www.abzas.org", "focus": ["Journalism tools"], "region": "Europe"}, {"name": "Mikroskop Media", "city": "", "cat": "Media outlet", "website": "https://mikroskopmedia.com/en/category/news/", "focus": ["Media/journalism production"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Brazil", "lat": -14.235, "lon": -51.9253, "total": 2, "dom_cat": "Media association/fund", "cats": {"Media association/fund": 1, "Project/Initiative": 1}, "secondary": {"Coalitions and advocacy": 1, "Regulatory and legal": 1}, "scope": {}, "orgs": [{"name": "Ajor -  Associação de Jornalismo Digital", "city": "", "cat": "Media association/fund", "website": "https://ajor.org.br/", "focus": ["Coalitions and advocacy"], "region": "Global South"}, {"name": "Momentum", "city": "", "cat": "Project/Initiative", "website": "https://momentumnewsandtech.org/en/2025/06/18/big-tech-taxation-and-journalism-paths-for-brazil/", "focus": ["Regulatory and legal"], "region": "Global"}], "years": [], "is_region": false}, {"name": "Denmark", "lat": 55.6761, "lon": 12.5683, "total": 2, "dom_cat": "Media association/fund", "cats": {"Media association/fund": 1, "CSO": 1}, "secondary": {"Coalitions and advocacy": 1, "Regulatory and legal": 1}, "scope": {}, "orgs": [{"name": "Danish Press Association CMO", "city": "", "cat": "Media association/fund", "website": "https://danskemedier.dk/", "focus": ["Coalitions and advocacy"], "region": "Europe"}, {"name": "The Danish Rights Alliance", "city": "", "cat": "CSO", "website": "https://rettighedsalliancen.com/", "focus": ["Regulatory and legal"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Finland", "lat": 60.1699, "lon": 24.9384, "total": 2, "dom_cat": "Media outlet", "cats": {"Media outlet": 1, "Media association/fund": 1}, "secondary": {"Media/journalism production": 1, "Coalitions and advocacy": 1}, "scope": {}, "orgs": [{"name": "Finnish Broadcasting Company", "city": "", "cat": "Media outlet", "website": "https://yle.fi/", "focus": ["Media/journalism production"], "region": "Europe"}, {"name": "The Union of Journalists in Finland - journalistiliitto", "city": "", "cat": "Media association/fund", "website": "https://journalistiliitto.fi/en/", "focus": ["Coalitions and advocacy"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "North Macedonia", "lat": 41.9981, "lon": 21.4254, "total": 2, "dom_cat": "Research/Think Tank", "cats": {"Research/Think Tank": 1, "CSO": 1}, "secondary": {"Research and audits": 1, "Social norms and literacy": 1}, "scope": {}, "orgs": [{"name": "Institute for Media Analysis (IMA)", "city": "", "cat": "Research/Think Tank", "website": "https://ima.mk/en/about-us/", "focus": ["Research and audits"], "region": "Europe"}, {"name": "Investigative Reporting Lab (north Macedonia)", "city": "", "cat": "CSO", "website": "https://irl.mk/about-us_/", "focus": ["Social norms and literacy"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Albania", "lat": 41.3275, "lon": 19.8187, "total": 1, "dom_cat": "Media outlet", "cats": {"Media outlet": 1}, "secondary": {"Media/journalism production": 1}, "scope": {}, "orgs": [{"name": "Koha", "city": "", "cat": "Media outlet", "website": "https://www.koha.net/", "focus": ["Media/journalism production"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Bosnia and Herzegovina", "lat": 43.8563, "lon": 18.4131, "total": 1, "dom_cat": "Media association/fund", "cats": {"Media association/fund": 1}, "secondary": {"Coalitions and advocacy": 1}, "scope": {}, "orgs": [{"name": "Balkan Investigative Reporting Network", "city": "", "cat": "Media association/fund", "website": "https://birn.eu.com/", "focus": ["Coalitions and advocacy"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Bulgaria", "lat": 42.7339, "lon": 25.4858, "total": 1, "dom_cat": "Media association/fund", "cats": {"Media association/fund": 1}, "secondary": {"Coalitions and advocacy": 1}, "scope": {}, "orgs": [{"name": "BROD - Bulgarian-Romanian Observatory of Digital Media", "city": "", "cat": "Media association/fund", "website": "nan", "focus": ["Coalitions and advocacy"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Canada", "lat": 56.1304, "lon": -106.3468, "total": 1, "dom_cat": "Research/Think Tank", "cats": {"Research/Think Tank": 1}, "secondary": {"Research and audits": 1}, "scope": {}, "orgs": [{"name": "The Centre for Media, Technology and Democracy at McGill University", "city": "", "cat": "Research/Think Tank", "website": "https://www.mediatechdemocracy.com/", "focus": ["Research and audits"], "region": "North America"}], "years": [], "is_region": false}, {"name": "Croatia", "lat": 45.815, "lon": 15.9819, "total": 1, "dom_cat": "Media outlet", "cats": {"Media outlet": 1}, "secondary": {"Media/journalism production": 1}, "scope": {}, "orgs": [{"name": "Oštro", "city": "", "cat": "Media outlet", "website": "https://www.ostro.si/", "focus": ["Media/journalism production"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "DRC", "lat": -4.0383, "lon": 21.7587, "total": 1, "dom_cat": "Media outlet", "cats": {"Media outlet": 1}, "secondary": {"Media/journalism production": 1}, "scope": {}, "orgs": [{"name": "Le live du livre Media Group", "city": "", "cat": "Media outlet", "website": "https://lelivedulivre.com/", "focus": ["Media/journalism production"], "region": "Global South"}], "years": [], "is_region": false}, {"name": "Estonia", "lat": 59.437, "lon": 24.7536, "total": 1, "dom_cat": "Research/Think Tank", "cats": {"Research/Think Tank": 1}, "secondary": {"Research and audits": 1}, "scope": {}, "orgs": [{"name": "Media and Journalism Research Centre", "city": "", "cat": "Research/Think Tank", "website": "https://journalismresearch.org/", "focus": ["Research and audits"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Ireland", "lat": 53.3498, "lon": -6.2603, "total": 1, "dom_cat": "Media association/fund", "cats": {"Media association/fund": 1}, "secondary": {"Coalitions and advocacy": 1}, "scope": {}, "orgs": [{"name": "News Brands Ireland", "city": "", "cat": "Media association/fund", "website": "http://www.newsbrandsireland.ie", "focus": ["Coalitions and advocacy"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Namibia", "lat": -22.9576, "lon": 18.4904, "total": 1, "dom_cat": "Media association/fund", "cats": {"Media association/fund": 1}, "secondary": {"Coalitions and advocacy": 1}, "scope": {}, "orgs": [{"name": "NMT Media Foundation (formerly Namibia Media Trust))", "city": "", "cat": "Media association/fund", "website": "https://www.nmt.africa/", "focus": ["Coalitions and advocacy"], "region": "Global South"}], "years": [], "is_region": false}, {"name": "Nigeria", "lat": 9.082, "lon": 8.6753, "total": 1, "dom_cat": "Research/Think Tank", "cats": {"Research/Think Tank": 1}, "secondary": {"Research and audits": 1}, "scope": {}, "orgs": [{"name": "Centre for Broadcast Investigative Journalism  (CJID)", "city": "", "cat": "Research/Think Tank", "website": "https://thecjid.org/about/", "focus": ["Research and audits"], "region": "Global South"}], "years": [], "is_region": false}, {"name": "Norway", "lat": 59.9139, "lon": 10.7522, "total": 1, "dom_cat": "Research/Think Tank", "cats": {"Research/Think Tank": 1}, "secondary": {"Research and audits": 1}, "scope": {}, "orgs": [{"name": "Resilient Media for Democracy", "city": "", "cat": "Research/Think Tank", "website": "https://resilientmedia.eu/?p=1699", "focus": ["Research and audits"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Romania", "lat": 44.4268, "lon": 26.1025, "total": 1, "dom_cat": "Media outlet", "cats": {"Media outlet": 1}, "secondary": {"Media/journalism production": 1}, "scope": {}, "orgs": [{"name": "Átlátszó Erdély", "city": "", "cat": "Media outlet", "website": "https://atlatszo.ro/", "focus": ["Media/journalism production"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "Slovakia", "lat": 48.1486, "lon": 17.1077, "total": 1, "dom_cat": "Media outlet", "cats": {"Media outlet": 1}, "secondary": {"Media/journalism production": 1}, "scope": {}, "orgs": [{"name": "ZIVE", "city": "", "cat": "Media outlet", "website": "https://zive.aktuality.sk/", "focus": ["Media/journalism production"], "region": "Europe"}], "years": [], "is_region": false}, {"name": "South Africa", "lat": -30.5595, "lon": 22.9375, "total": 1, "dom_cat": "Public sector", "cats": {"Public sector": 1}, "secondary": {"Regulatory and legal": 1}, "scope": {}, "orgs": [{"name": "South Africa’s Commission on Media and Digital’s Platforms Market Inquiry", "city": "", "cat": "Public sector", "website": "https://www.compcom.co.za/media-and-digital-platforms-market-inquiry/", "focus": ["Regulatory and legal"], "region": "Global South"}], "years": [], "is_region": false}, {"name": "Sweden", "lat": 59.3293, "lon": 18.0686, "total": 1, "dom_cat": "Media outlet", "cats": {"Media outlet": 1}, "secondary": {"Media/journalism production": 1}, "scope": {}, "orgs": [{"name": "Aftonbladet", "city": "", "cat": "Media outlet", "website": "https://www.aftonbladet.se/", "focus": ["Media/journalism production"], "region": "Regional"}], "years": [], "is_region": false}, {"name": "Zimbabwe", "lat": -19.0154, "lon": 29.1549, "total": 1, "dom_cat": "Media association/fund", "cats": {"Media association/fund": 1}, "secondary": {"Coalitions and advocacy": 1}, "scope": {}, "orgs": [{"name": "MISA Zimbabwe", "city": "", "cat": "Media association/fund", "website": "https://zimbabwe.misa.org/", "focus": ["Coalitions and advocacy"], "region": "Africa"}], "years": [], "is_region": false}], "cat_totals": {"CSO": 36, "Media outlet": 52, "Media association/fund": 55, "Ecosystem": 9, "Research/Think Tank": 23, "Project/Initiative": 11, "Mid/Small Tech": 15, "Big Tech": 2, "Public sector": 1}, "sec_totals": {"Social norms and literacy": 18, "Coalitions and advocacy": 50, "Journalism tools": 6, "Media/journalism production": 43, "Research and audits": 34, "Regulatory and legal": 8, "Data Collaborative": 4, "Funds/Investment": 21, "Preference signalling": 5, "Paid data services": 2, "Business models": 6, "Technical gatekeeping": 8, "Licensing/commercial deals": 5, "Visibility tools": 2}, "sec_by_cat": {"CSO": {"Social norms and literacy": 6, "Coalitions and advocacy": 10, "Research and audits": 9, "Regulatory and legal": 2, "Funds/Investment": 3, "Preference signalling": 2, "Technical gatekeeping": 1, "Business models": 1, "Media/journalism production": 2, "Paid data services": 1}, "Media outlet": {"Media/journalism production": 38, "Journalism tools": 1, "Licensing/commercial deals": 3, "Funds/Investment": 1, "Paid data services": 1, "Social norms and literacy": 5, "Business models": 1, "Coalitions and advocacy": 2}, "Media association/fund": {"Coalitions and advocacy": 33, "Social norms and literacy": 6, "Funds/Investment": 16, "Research and audits": 2, "Regulatory and legal": 1, "Business models": 2, "Media/journalism production": 1}, "Research/Think Tank": {"Research and audits": 20, "Media/journalism production": 1, "Business models": 1, "Journalism tools": 1}, "Ecosystem": {"Coalitions and advocacy": 2, "Data Collaborative": 3, "Research and audits": 2, "Regulatory and legal": 3}, "Project/Initiative": {"Preference signalling": 3, "Funds/Investment": 1, "Research and audits": 1, "Coalitions and advocacy": 2, "Regulatory and legal": 1, "Journalism tools": 2, "Social norms and literacy": 1}, "Mid/Small Tech": {"Technical gatekeeping": 7, "Media/journalism production": 1, "Visibility tools": 2, "Coalitions and advocacy": 1, "Journalism tools": 2, "Licensing/commercial deals": 1, "Data Collaborative": 1}, "Big Tech": {"Licensing/commercial deals": 1, "Business models": 1}, "Public sector": {"Regulatory and legal": 1}}, "scope_totals": {}, "year_series": [], "meta": {"total_orgs": 204, "total_countries": 35, "cats": ["CSO", "Media outlet", "Media association/fund", "Ecosystem", "Research/Think Tank", "Project/Initiative", "Mid/Small Tech", "Big Tech", "Public sector"], "secs": ["Social norms and literacy", "Coalitions and advocacy", "Journalism tools", "Media/journalism production", "Research and audits", "Regulatory and legal", "Data Collaborative", "Funds/Investment", "Preference signalling", "Paid data services", "Business models", "Technical gatekeeping", "Licensing/commercial deals", "Visibility tools"], "sec_label": "Focus Areas", "cat_label": "Organisation Type", "total_regions": 0}}};
+
+// =============== COLOUR ASSIGNMENT ===============
+const PALETTE = ['#B33A3A','#2E5F8A','#C28C2C','#4A7B5C','#6B4E8A','#1B5666','#A85432','#5C5C5C','#8B5A8C'];
+
+function buildColourMap(keys) {
+  const m = {};
+  keys.forEach((k, i) => { m[k] = PALETTE[i % PALETTE.length]; });
+  return m;
+}
+
+// =============== STATE ===============
+const state = {
+  ds: 'd1',
+  cats: new Set(),       // active categories
+  secs: new Set(),       // active secondary filters
+  country: null,         // selected country name
+  viewMode: 'bubble',    // bubble | dom | density
+  tab: 'overview',       // overview | rankings | composition
+  catColours: {},
+  secColours: {},
+};
+
+function currentDS() { return RAW[state.ds]; }
+
+// =============== MAPLIBRE MAP ===============
+// Keyless vector basemap (OpenFreeMap "Positron" – light, minimal, close to the old CARTO look).
+// Other keyless options: .../styles/liberty, .../styles/bright, .../styles/dark
+const BASEMAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
+// If the basemap can't be fetched, fall back to a plain paper-coloured background so the data still shows
+const BLANK_STYLE = { version: 8, sources: {}, layers: [
+  { id: 'bg', type: 'background', paint: { 'background-color': '#EAE5DA' } }
+] };
+
+// NB: MapLibre uses [lng, lat] (Leaflet used [lat, lng]) and its zoom levels are 1 lower than Leaflet's
+const EUROPE_BOUNDS = [[-12, 35], [40, 65]];   // SW, NE
+
+const map = new maplibregl.Map({
+  container: 'map',
+  style: BASEMAP_STYLE,
+  center: [12, 48], zoom: 3,
+  minZoom: 1, maxZoom: 7,
+  attributionControl: { compact: false },
+  dragRotate: false, pitchWithRotate: false,
+});
+map.touchZoomRotate.disableRotation();
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+
+let mapReady = false;
+let styleFallbackTried = false;
+let selectionRing = null;
+let hoverKey = null;
+const EMPTY_FC = { type: 'FeatureCollection', features: [] };
+const hoverPopup = new maplibregl.Popup({
+  className: 'atlas-tip', closeButton: false, closeOnClick: false, anchor: 'bottom', maxWidth: 'none',
+});
+
+map.on('error', e => {
+  // Style JSON itself failed (no sourceId) -> swap in the blank style; ignore individual tile errors
+  if (mapReady || styleFallbackTried || e.sourceId) return;
+  styleFallbackTried = true;
+  console.warn('Basemap style failed to load, using blank background', e.error);
+  map.setStyle(BLANK_STYLE);
+});
+
+map.on('load', () => {
+  map.addSource('atlas', { type: 'geojson', data: EMPTY_FC });
+  // Insert under the basemap's first label layer so place names stay readable on top of the bubbles
+  const firstLabel = (map.getStyle().layers.find(l => l.type === 'symbol') || {}).id;
+
+  map.addLayer({
+    id: 'atlas-glow', type: 'circle', source: 'atlas',
+    filter: ['==', ['get', 'kind'], 'glow'],
+    paint: {
+      'circle-radius': ['get', 'r'],
+      'circle-color': ['get', 'fill'],
+      'circle-opacity': ['get', 'fo'],
+    },
+  }, firstLabel);
+
+  map.addLayer({
+    id: 'atlas-pts', type: 'circle', source: 'atlas',
+    filter: ['!=', ['get', 'kind'], 'glow'],
+    layout: { 'circle-sort-key': ['get', 'z'] },   // small bubbles drawn on top of big ones
+    paint: {
+      'circle-radius': ['get', 'r'],
+      'circle-color': ['get', 'fill'],
+      'circle-opacity': ['get', 'fo'],
+      'circle-stroke-color': ['get', 'stroke'],
+      'circle-stroke-width': ['get', 'w'],
+      'circle-stroke-opacity': ['get', 'so'],
+    },
+  }, firstLabel);
+
+  // Hover tooltip + click-to-drill
+  map.on('mousemove', 'atlas-pts', e => {
+    const f = e.features && e.features[0];
+    if (!f) return;
+    map.getCanvas().style.cursor = 'pointer';
+    const p = f.properties;
+    const coords = f.geometry.coordinates.slice();
+    // when the world is repeated, anchor the tooltip to the copy under the cursor
+    while (Math.abs(e.lngLat.lng - coords[0]) > 180) coords[0] += e.lngLat.lng > coords[0] ? 360 : -360;
+    const key = p.kind + '|' + p.name;
+    if (key !== hoverKey) {
+      hoverKey = key;
+      hoverPopup.setHTML(p.tip).setOffset([0, -p.dy]);
+    }
+    hoverPopup.setLngLat(coords);
+    if (!hoverPopup.isOpen()) hoverPopup.addTo(map);
+  });
+  map.on('mouseleave', 'atlas-pts', () => {
+    map.getCanvas().style.cursor = '';
+    hoverKey = null;
+    hoverPopup.remove();
+  });
+  map.on('click', 'atlas-pts', e => {
+    const f = e.features && e.features[0];
+    if (f) selectCountry(f.properties.name);
+  });
+
+  mapReady = true;
+  render();
+});
+
+// =============== COLOUR INITIALISATION ===============
+function initColours() {
+  const ds = currentDS();
+  // category colours: stable order from cat_totals (descending count)
+  const cats = Object.entries(ds.cat_totals).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
+  state.catColours = buildColourMap(cats);
+  // secondary colours: from sec_totals
+  const secs = Object.keys(ds.sec_totals);
+  state.secColours = buildColourMap(secs);
+}
+
+// =============== UI BUILDERS ===============
+function setLabels() {
+  const ds = currentDS();
+  document.getElementById('cat-label').textContent = ds.meta.cat_label;
+  document.getElementById('sec-label').textContent = ds.meta.sec_label;
+  document.getElementById('legend-title').textContent = 'By ' + ds.meta.cat_label;
+
+  document.getElementById('title-eyebrow').textContent =
+    state.ds === 'd1' ? 'Dataset 01 · Independent Media' : 'Dataset 02 · Wider Ecosystem';
+  // headline with stylistic em on a key word
+  document.getElementById('title-headline').innerHTML =
+    state.ds === 'd1'
+      ? 'European <em>Media</em> Outlets'
+      : 'Wider Media <em>Ecosystem</em>';
+  document.getElementById('title-sub').textContent = ds.subtitle;
+
+  document.getElementById('kpi-pct-label').textContent =
+    state.ds === 'd1' ? '% Non-Profit' : '% Top Cat';
+
+  // geography meta
+  const geoText = state.ds === 'd1'
+    ? `${ds.meta.total_countries} countries`
+    : `${ds.meta.total_countries} cntr · ${ds.meta.total_regions} reg`;
+  document.getElementById('geo-meta').textContent = geoText;
+}
+
+function buildCountrySelect() {
+  const sel = document.getElementById('country-select');
+  sel.innerHTML = '<option value="">All countries</option>';
+  currentDS().countries.forEach(c => {
+    const o = document.createElement('option');
+    o.value = c.name;
+    o.textContent = c.is_region ? `↳ ${c.name} (region)` : c.name;
+    sel.appendChild(o);
+  });
+}
+
+function buildCatTiles() {
+  const wrap = document.getElementById('cat-tiles');
+  wrap.innerHTML = '';
+  const ds = currentDS();
+  const cats = Object.entries(ds.cat_totals).sort((a,b)=>b[1]-a[1]);
+  state.cats = new Set(cats.map(c=>c[0]));
+  cats.forEach(([cat, total]) => {
+    const c = state.catColours[cat];
+    const div = document.createElement('div');
+    div.className = 'cat-tile';
+    div.dataset.cat = cat;
+    div.style.color = c;
+    div.innerHTML = `<span class="dot" style="background:${c}"></span><span class="name">${cat}</span><span class="count">${total}</span>`;
+    div.addEventListener('click', () => {
+      if (state.cats.has(cat)) { state.cats.delete(cat); div.classList.add('off'); }
+      else { state.cats.add(cat); div.classList.remove('off'); }
+      render();
+    });
+    wrap.appendChild(div);
+  });
+}
+
+function buildSecToggles() {
+  const wrap = document.getElementById('sec-toggles');
+  wrap.innerHTML = '';
+  state.secs = new Set();
+  const ds = currentDS();
+  Object.entries(ds.sec_totals).slice(0, 10).forEach(([sec, total]) => {
+    const div = document.createElement('div');
+    div.className = 'sec-toggle';
+    div.dataset.sec = sec;
+    div.innerHTML = `<span class="check"></span><span class="lbl" title="${sec}">${sec}</span>`;
+    div.addEventListener('click', () => {
+      if (state.secs.has(sec)) { state.secs.delete(sec); div.classList.remove('on'); }
+      else { state.secs.add(sec); div.classList.add('on'); }
+      render();
+    });
+    wrap.appendChild(div);
+  });
+}
+
+function buildLegend() {
+  const wrap = document.getElementById('legend-cats');
+  wrap.innerHTML = '';
+  const ds = currentDS();
+  Object.entries(ds.cat_totals).sort((a,b)=>b[1]-a[1]).forEach(([cat]) => {
+    const c = state.catColours[cat];
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<span class="legend-dot" style="background:${c}"></span><span>${cat}</span>`;
+    wrap.appendChild(item);
+  });
+}
+
+// =============== FILTER LOGIC ===============
+function filteredCountries() {
+  const ds = currentDS();
+  return ds.countries.filter(c => {
+    if (state.country && c.name !== state.country) return false;
+    // active categories: country must have at least one org in active cats
+    const visOrgs = c.orgs.filter(o => state.cats.has(o.cat));
+    if (visOrgs.length === 0) return false;
+    // secondary filter (any-of)
+    if (state.secs.size > 0) {
+      const hasSec = [...state.secs].some(s => (c.secondary[s] || 0) > 0);
+      if (!hasSec) return false;
+    }
+    return true;
+  });
+}
+
+function visibleOrgsOf(c) {
+  return c.orgs.filter(o => state.cats.has(o.cat));
+}
+
+function totalsOfFiltered(fcs) {
+  let orgs = 0;
+  const cats = {};
+  fcs.forEach(c => {
+    visibleOrgsOf(c).forEach(o => {
+      orgs++;
+      cats[o.cat] = (cats[o.cat] || 0) + 1;
+    });
+  });
+  return { orgs, cats, countries: fcs.length };
+}
+
+// =============== KPI / STRIP ===============
+function updateKPIs(fcs, totals) {
+  document.getElementById('kpi-orgs').textContent = totals.orgs;
+  document.getElementById('kpi-countries').textContent = totals.countries;
+
+  if (state.ds === 'd1') {
+    const np = totals.cats['Non-Profit / NGO'] || 0;
+    document.getElementById('kpi-pct').textContent = totals.orgs ? Math.round(np/totals.orgs*100) + '%' : '—';
+  } else {
+    // top category share
+    const top = Object.entries(totals.cats).sort((a,b)=>b[1]-a[1])[0];
+    document.getElementById('kpi-pct').textContent =
+      top ? Math.round(top[1]/totals.orgs*100) + '%' : '—';
+  }
+
+  // strip
+  document.getElementById('strip-orgs').textContent = totals.orgs;
+  document.getElementById('strip-countries').textContent = totals.countries;
+  const topC = fcs.length ? fcs.reduce((a,b) => visibleOrgsOf(a).length > visibleOrgsOf(b).length ? a : b) : null;
+  document.getElementById('strip-top').textContent = topC ? topC.name : '—';
+}
+
+// =============== MAP RENDERING ===============
+function clearMap() {
+  hoverPopup.remove();
+  hoverKey = null;
+}
+
+function drawMarkers(fcs) {
+  clearMap();
+  if (!mapReady) return;          // first render happens from map.on('load')
+  const feats = state.viewMode === 'density' ? densityFeatures(fcs) : bubbleFeatures(fcs);
+  map.getSource('atlas').setData({ type: 'FeatureCollection', features: feats });
+
+  // Keep the selection ring in place
+  if (state.country) {
+    const c = currentDS().countries.find(x => x.name === state.country);
+    if (c) drawSelectionRing(c);
+  }
+}
+
+function bubbleFeatures(fcs) {
+  const feats = [];
+  const maxTotal = Math.max(...fcs.map(c => visibleOrgsOf(c).length), 1);
+
+  fcs.forEach(c => {
+    const visOrgs = visibleOrgsOf(c);
+    const cnt = visOrgs.length;
+    if (cnt === 0) return;
+    const rad = 7 + Math.sqrt(cnt / maxTotal) * 22;
+
+    let fillCol, ringCol;
+    if (state.viewMode === 'dom') {
+      // colour by dominant CATEGORY among visible
+      const catCount = {};
+      visOrgs.forEach(o => { catCount[o.cat] = (catCount[o.cat] || 0) + 1; });
+      const dom = Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0][0];
+      fillCol = state.catColours[dom] || '#888';
+      ringCol = fillCol;
+    } else {
+      // bubble: dom_cat from raw, but recomputed from visible
+      const catCount = {};
+      visOrgs.forEach(o => { catCount[o.cat] = (catCount[o.cat] || 0) + 1; });
+      const dom = Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0][0];
+      fillCol = state.catColours[dom] || '#888';
+      ringCol = fillCol;
+    }
+
+    // tooltip
+    const catBreak = Object.entries(c.cats)
+      .filter(([k]) => state.cats.has(k))
+      .sort((a,b)=>b[1]-a[1])
+      .map(([k,v]) => `<div class="tip-row"><span class="d" style="background:${state.catColours[k]}"></span><span class="l">${k}</span><span class="v">${v}</span></div>`)
+      .join('');
+    const eyebrow = c.is_region ? 'Regional Anchor · approximate' : (state.ds === 'd1' ? 'Country' : 'Country · resolved');
+    const tip = `
+      <div class="tip-inner">
+        <div class="tip-name">${c.name}</div>
+        <div class="tip-meta">${eyebrow} · ${cnt} ${cnt===1?'org':'orgs'}</div>
+        ${catBreak}
+        <div class="tip-foot">Click to drill in →</div>
+      </div>
+    `;
+
+    feats.push({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [c.lon, c.lat] },
+      properties: {
+        kind: 'main', name: c.name, tip,
+        r: rad, dy: rad + 2, z: -rad,
+        fill: fillCol, stroke: ringCol, fo: 0.62, so: 0.95, w: 1.5,
+      },
+    });
+  });
+  return feats;
+}
+
+function densityFeatures(fcs) {
+  // Rough density visualisation: large translucent circles plus a small solid core
+  const feats = [];
+  const maxTotal = Math.max(...fcs.map(c => visibleOrgsOf(c).length), 1);
+  fcs.forEach(c => {
+    const cnt = visibleOrgsOf(c).length;
+    if (cnt === 0) return;
+    const ratio = cnt / maxTotal;
+    const geometry = { type: 'Point', coordinates: [c.lon, c.lat] };
+    // glow
+    feats.push({ type: 'Feature', geometry, properties: {
+      kind: 'glow', name: c.name,
+      r: 10 + ratio * 60, fill: '#B33A3A', fo: 0.06 + ratio * 0.18,
+    } });
+    // core
+    const coreR = 3 + ratio * 8;
+    feats.push({ type: 'Feature', geometry, properties: {
+      kind: 'core', name: c.name,
+      tip: `<div class="tip-inner"><div class="tip-name">${c.name}</div><div class="tip-meta">Density · ${cnt} orgs</div></div>`,
+      r: coreR, dy: coreR + 2, z: -coreR,
+      fill: '#B33A3A', stroke: '#1A1A18', fo: 0.9, so: 1, w: 1,
+    } });
+  });
+  return feats;
+}
+
+function drawSelectionRing(c) {
+  clearSelectionRing();
+  const el = document.createElement('div');
+  el.className = 'selection-ring';
+  selectionRing = new maplibregl.Marker({ element: el }).setLngLat([c.lon, c.lat]).addTo(map);
+}
+
+function clearSelectionRing() {
+  if (selectionRing) { selectionRing.remove(); selectionRing = null; }
+}
+
+// =============== INSIGHTS PANEL ===============
+function renderInsights(fcs, totals) {
+  const el = document.getElementById('insights-content');
+  el.className = 'animate-in';
+
+  // No matches
+  if (fcs.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="ico">∅</div><div>No data matches filters.</div></div>`;
+    return;
+  }
+
+  if (state.country) {
+    const c = currentDS().countries.find(x => x.name === state.country);
+    if (c) { renderCountryDrilldown(c); return; }
+  }
+
+  // Tabbed views for the overview
+  if (state.tab === 'overview') renderOverview(fcs, totals);
+  else if (state.tab === 'rankings') renderRankings(fcs, totals);
+  else if (state.tab === 'composition') renderComposition(fcs, totals);
+}
+
+function renderOverview(fcs, totals) {
+  const el = document.getElementById('insights-content');
+  const ds = currentDS();
+  const top12 = fcs.slice(0, 12);
+  const maxC = Math.max(...top12.map(c => visibleOrgsOf(c).length), 1);
+
+  const countryBars = top12.map(c => {
+    const cnt = visibleOrgsOf(c).length;
+    const dom = Object.entries(c.cats).filter(([k])=>state.cats.has(k)).sort((a,b)=>b[1]-a[1])[0];
+    const col = dom ? state.catColours[dom[0]] : '#888';
+    const isReg = c.is_region ? '↳ ' : '';
+    return `<div class="bar-row clickable" data-country="${c.name}">
+      <div class="bar-label" title="${c.name}">${isReg}${c.name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(cnt/maxC*100)}%;background:${col}"></div></div>
+      <div class="bar-num">${cnt}</div>
+    </div>`;
+  }).join('');
+
+  const catEntries = Object.entries(totals.cats).sort((a,b)=>b[1]-a[1]);
+  const catMax = Math.max(...catEntries.map(c=>c[1]), 1);
+  const catBars = catEntries.map(([cat, cnt]) => `
+    <div class="bar-row">
+      <div class="bar-label" title="${cat}">${cat}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(cnt/catMax*100)}%;background:${state.catColours[cat]}"></div></div>
+      <div class="bar-num">${cnt}</div>
+    </div>`).join('');
+
+  // Founding-year sparkline (D1 only)
+  let sparkBlock = '';
+  if (state.ds === 'd1' && ds.year_series.length) {
+    sparkBlock = `<div class="panel-section">
+      <div class="panel-head"><div class="panel-title">Founding years</div><div class="panel-meta">${ds.year_series[0].year}–${ds.year_series[ds.year_series.length-1].year}</div></div>
+      ${buildSparkline(ds.year_series)}
+    </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="panel-section">
+      <div class="panel-head">
+        <div class="panel-title">Top geographies</div>
+        <div class="panel-meta">${fcs.length} total</div>
+      </div>
+      ${countryBars}
+    </div>
+    <div class="panel-section">
+      <div class="panel-head">
+        <div class="panel-title">${ds.meta.cat_label} mix</div>
+        <div class="panel-meta">${catEntries.length} cats</div>
+      </div>
+      ${catBars}
+    </div>
+    ${sparkBlock}
+  `;
+
+  // Wire bar-row clicks
+  el.querySelectorAll('.bar-row.clickable').forEach(row => {
+    row.addEventListener('click', () => selectCountry(row.dataset.country));
+  });
+}
+
+function renderRankings(fcs, totals) {
+  const el = document.getElementById('insights-content');
+  const ds = currentDS();
+  const sorted = [...fcs].sort((a,b) => visibleOrgsOf(b).length - visibleOrgsOf(a).length);
+
+  const rows = sorted.map((c, i) => {
+    const cnt = visibleOrgsOf(c).length;
+    const dom = Object.entries(c.cats).filter(([k])=>state.cats.has(k)).sort((a,b)=>b[1]-a[1])[0];
+    const col = dom ? state.catColours[dom[0]] : '#888';
+    return `<div class="org-item" style="cursor:pointer" onclick="selectCountry('${c.name.replace(/'/g, "\\\\'")}')">
+      <div style="font-family:'Fraunces',serif;font-size:18px;color:var(--muted-2);width:24px;text-align:right;font-feature-settings:'tnum'">${(i+1).toString().padStart(2,'0')}</div>
+      <div style="width:8px;height:8px;background:${col};border-radius:50%;margin-top:6px"></div>
+      <div class="org-info">
+        <div class="org-name">${c.name}${c.is_region?' <span style="color:var(--muted-2);font-size:10px">· region</span>':''}</div>
+        <div class="org-meta"><span class="chip">${dom ? dom[0] : '—'}</span></div>
+      </div>
+      <div style="font-family:'Fraunces',serif;font-size:18px;color:var(--ink);font-feature-settings:'tnum'">${cnt}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="panel-section">
+      <div class="panel-head">
+        <div class="panel-title">Geography ranking</div>
+        <div class="panel-meta">by org count</div>
+      </div>
+      <div class="org-list">${rows}</div>
+    </div>
+  `;
+}
+
+function renderComposition(fcs, totals) {
+  const el = document.getElementById('insights-content');
+  const ds = currentDS();
+
+  // Stacked bars: secondary mix per category
+  const cats = Object.keys(state.catColours);
+  const secs = Object.keys(ds.sec_totals).slice(0, 8);
+
+  const stackedBars = cats.map(cat => {
+    const secMap = ds.sec_by_cat[cat] || {};
+    const totalForCat = secs.reduce((s,r)=>s + (secMap[r]||0), 0);
+    if (totalForCat === 0) {
+      return `<div class="stacked-row">
+        <div class="stacked-label" title="${cat}">${cat}</div>
+        <div class="stacked-track"></div>
+      </div>`;
+    }
+    const segs = secs.map(rev => {
+      const v = secMap[rev] || 0;
+      const pct = (v / totalForCat) * 100;
+      return pct > 0 ? `<div class="stacked-seg" style="width:${pct}%;background:${state.secColours[rev]}" title="${rev}: ${v}"></div>` : '';
+    }).join('');
+    return `<div class="stacked-row">
+      <div class="stacked-label" title="${cat}">${cat}</div>
+      <div class="stacked-track">${segs}</div>
+    </div>`;
+  }).join('');
+
+  const legend = secs.map(r => `<div class="item"><span class="swatch" style="background:${state.secColours[r]}"></span>${r}</div>`).join('');
+
+  // Secondary totals chart
+  const secEntries = Object.entries(totals.cats);
+  const secTotalAgg = {};
+  fcs.forEach(c => {
+    Object.entries(c.secondary).forEach(([s,v]) => { secTotalAgg[s] = (secTotalAgg[s]||0) + v; });
+  });
+  const secSorted = Object.entries(secTotalAgg).sort((a,b)=>b[1]-a[1]).slice(0, 10);
+  const secMax = Math.max(...secSorted.map(s=>s[1]), 1);
+  const secBars = secSorted.map(([s, v]) => `
+    <div class="bar-row">
+      <div class="bar-label" title="${s}">${s}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v/secMax*100)}%;background:${state.secColours[s]||'#888'}"></div></div>
+      <div class="bar-num">${v}</div>
+    </div>
+  `).join('');
+
+  el.innerHTML = `
+    <div class="panel-section">
+      <div class="panel-head">
+        <div class="panel-title">${ds.meta.sec_label} mix by ${ds.meta.cat_label.toLowerCase()}</div>
+        <div class="panel-meta">% within cat</div>
+      </div>
+      ${stackedBars}
+      <div class="sec-mini-legend">${legend}</div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-head">
+        <div class="panel-title">${ds.meta.sec_label} · totals</div>
+        <div class="panel-meta">top 10</div>
+      </div>
+      ${secBars}
+    </div>
+  `;
+}
+
+function renderCountryDrilldown(c) {
+  const el = document.getElementById('insights-content');
+  el.className = 'animate-in';
+  const ds = currentDS();
+  const visOrgs = visibleOrgsOf(c);
+
+  const catEntries = Object.entries(c.cats).filter(([k])=>state.cats.has(k)).sort((a,b)=>b[1]-a[1]);
+  const catMax = Math.max(...catEntries.map(x=>x[1]), 1);
+  const catBars = catEntries.map(([k, v]) => `
+    <div class="bar-row">
+      <div class="bar-label" title="${k}">${k}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v/catMax*100)}%;background:${state.catColours[k]}"></div></div>
+      <div class="bar-num">${v}</div>
+    </div>`).join('');
+
+  const secEntries = Object.entries(c.secondary).sort((a,b)=>b[1]-a[1]).slice(0, 8);
+  const secMax = Math.max(...secEntries.map(x=>x[1]), 1);
+  const secBars = secEntries.length ? secEntries.map(([k, v]) => `
+    <div class="bar-row">
+      <div class="bar-label" title="${k}">${k}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(v/secMax*100)}%;background:${state.secColours[k]||'#888'}"></div></div>
+      <div class="bar-num">${v}</div>
+    </div>`).join('') : '<div style="font-size:11px;color:var(--muted)">No data.</div>';
+
+  const orgList = visOrgs.map(o => {
+    const meta = [];
+    if (o.city) meta.push(`<span class="chip">${o.city}</span>`);
+    if (o.year) meta.push(`<span class="chip">${o.year}</span>`);
+    meta.push(`<span class="chip">${o.cat}</span>`);
+    return `<div class="org-item">
+      <div class="org-dot" style="background:${state.catColours[o.cat]||'#888'}"></div>
+      <div class="org-info">
+        <div class="org-name">${o.website ? `<a href="${o.website}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--rule);" title="Open ${o.website.replace(/^https?:\/\//,'').replace(/\/$/,'')}">${o.name}</a>` : o.name}</div>
+        <div class="org-meta">${meta.join('')}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Sparkline for D1 country: years
+  let yearBlock = '';
+  if (state.ds === 'd1' && c.years.length) {
+    const yc = {};
+    c.years.forEach(y => { yc[y] = (yc[y]||0) + 1; });
+    const series = Object.entries(yc).map(([y,c])=>({year:+y, count:c})).sort((a,b)=>a.year-b.year);
+    if (series.length > 1) {
+      yearBlock = `<div class="panel-section">
+        <div class="panel-head"><div class="panel-title">Founding years</div><div class="panel-meta">${series[0].year}–${series[series.length-1].year}</div></div>
+        ${buildSparkline(series)}
+      </div>`;
+    }
+  }
+
+  // Region disclaimer
+  const regionNote = c.is_region
+    ? `<div style="font-size:10.5px;color:var(--muted);font-style:italic;padding:8px 10px;background:var(--paper);border-radius:5px;border-left:2px solid var(--c3)">Regional anchor · these organisations were not resolvable to specific countries from source data.</div>`
+    : '';
+
+  el.innerHTML = `
+    <div class="selected-header">
+      <div class="selected-name-block">
+        <div class="selected-eyebrow">${c.is_region ? 'Region' : 'Country'} · ${visOrgs.length} ${visOrgs.length===1?'organisation':'organisations'}</div>
+        <div class="selected-name">${c.name}</div>
+      </div>
+      <button class="back-btn" onclick="clearCountry()">↩ Back</button>
+    </div>
+    ${regionNote}
+    <div class="selected-stats">
+      <div class="selected-stat"><div class="v">${visOrgs.length}</div><div class="l">Orgs</div></div>
+      <div class="selected-stat"><div class="v">${catEntries.length}</div><div class="l">Cats</div></div>
+      <div class="selected-stat"><div class="v">${secEntries.length}</div><div class="l">${ds.meta.sec_label.split(' ')[0]}</div></div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-head"><div class="panel-title">${ds.meta.cat_label}</div></div>
+      ${catBars}
+    </div>
+    <div class="panel-section">
+      <div class="panel-head"><div class="panel-title">${ds.meta.sec_label}</div></div>
+      ${secBars}
+    </div>
+    ${yearBlock}
+    <div class="panel-section">
+      <div class="panel-head">
+        <div class="panel-title">Organisations</div>
+        <div class="panel-meta">${visOrgs.length} listed</div>
+      </div>
+      <div class="org-list">${orgList}</div>
+    </div>
+  `;
+}
+
+function buildSparkline(series) {
+  // series: [{year, count}]
+  const w = 280, h = 60, pad = 4;
+  const xs = series.map(p=>p.year);
+  const ys = series.map(p=>p.count);
+  const xMin = Math.min(...xs), xMax = Math.max(...xs);
+  const yMax = Math.max(...ys);
+  const sx = x => pad + ((x - xMin) / Math.max(xMax - xMin, 1)) * (w - 2*pad);
+  const sy = y => h - pad - (y / Math.max(yMax,1)) * (h - 2*pad);
+  let path = '';
+  series.forEach((p, i) => {
+    path += (i===0 ? 'M' : 'L') + sx(p.year) + ',' + sy(p.count);
+  });
+  const area = `M${pad},${h-pad} L${sx(xs[0])},${sy(ys[0])} ` +
+    series.slice(1).map(p=>`L${sx(p.year)},${sy(p.count)}`).join(' ') +
+    ` L${sx(xs[xs.length-1])},${h-pad} Z`;
+
+  const lastDot = `<circle class="marker" cx="${sx(xs[xs.length-1])}" cy="${sy(ys[ys.length-1])}" r="3"/>`;
+  return `<svg class="sparkline" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <path class="area" d="${area}"/>
+    <path class="line" d="${path}"/>
+    ${lastDot}
+    <text class="axis-label" x="${pad}" y="${h-1}">${xMin}</text>
+    <text class="axis-label" x="${w-pad}" y="${h-1}" text-anchor="end">${xMax}</text>
+  </svg>`;
+}
+
+// =============== ACTIONS ===============
+function selectCountry(name) {
+  state.country = name;
+  document.getElementById('country-select').value = name;
+  const c = currentDS().countries.find(x => x.name === name);
+  if (c) {
+    map.flyTo({ center: [c.lon, c.lat], zoom: Math.max(map.getZoom(), 4), duration: 700 });
+    drawSelectionRing(c);
+  }
+  render();
+}
+
+function clearCountry() {
+  state.country = null;
+  document.getElementById('country-select').value = '';
+  clearSelectionRing();
+  render();
+}
+
+function setDataset(id) {
+  if (state.ds === id) return;
+  state.ds = id;
+  state.country = null;
+  clearSelectionRing();
+  document.querySelectorAll('.ds-toggle button').forEach(b => {
+    const active = b.dataset.ds === id;
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-selected', active);
+  });
+  positionPill();
+
+  initColours();
+  setLabels();
+  buildCountrySelect();
+  buildCatTiles();
+  buildSecToggles();
+  buildLegend();
+
+  // Set view bounds appropriate to dataset
+  if (id === 'd1') {
+    map.fitBounds(EUROPE_BOUNDS, { padding: 20, duration: 600 });
+  } else {
+    map.flyTo({ center: [10, 30], zoom: 1.5, duration: 600 });
+  }
+  render();
+}
+
+function setViewMode(vm) {
+  state.viewMode = vm;
+  document.querySelectorAll('.vm-btn').forEach(b => b.classList.toggle('active', b.dataset.vm === vm));
+  render();
+}
+
+function setTab(tab) {
+  state.tab = tab;
+  document.querySelectorAll('.insights-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  render();
+}
+
+function resetFilters() {
+  state.country = null;
+  const ds = currentDS();
+  state.cats = new Set(Object.keys(ds.cat_totals));
+  state.secs = new Set();
+  document.getElementById('country-select').value = '';
+  document.querySelectorAll('.cat-tile').forEach(t => t.classList.remove('off'));
+  document.querySelectorAll('.sec-toggle').forEach(t => t.classList.remove('on'));
+  clearSelectionRing();
+  render();
+}
+
+// =============== TOGGLE PILL ANIMATION ===============
+function positionPill() {
+  const pill = document.getElementById('ds-pill');
+  const active = document.querySelector('.ds-toggle button.active');
+  if (!active) return;
+  const wrap = document.getElementById('ds-toggle');
+  const wrapRect = wrap.getBoundingClientRect();
+  const aRect = active.getBoundingClientRect();
+  pill.style.left = (aRect.left - wrapRect.left) + 'px';
+  pill.style.width = aRect.width + 'px';
+}
+
+// =============== SEARCH ===============
+function buildSearchIndex() {
+  const idx = [];
+  ['d1','d2'].forEach(dsKey => {
+    RAW[dsKey].countries.forEach(c => {
+      idx.push({ kind: 'country', ds: dsKey, name: c.name, where: dsKey.toUpperCase(), ref: c.name });
+      c.orgs.forEach(o => {
+        idx.push({ kind: 'org', ds: dsKey, name: o.name, where: c.name, ref: c.name, cat: o.cat });
+      });
+    });
+  });
+  return idx;
+}
+const SEARCH_INDEX = buildSearchIndex();
+
+function runSearch(q) {
+  const dropdown = document.getElementById('search-results');
+  if (!q || q.length < 1) { dropdown.classList.remove('show'); return; }
+  const ql = q.toLowerCase();
+  const matches = SEARCH_INDEX
+    .filter(it => it.name.toLowerCase().includes(ql))
+    .slice(0, 10);
+  if (!matches.length) {
+    dropdown.innerHTML = `<div class="sr-empty">No matches for "${q}"</div>`;
+    dropdown.classList.add('show');
+    return;
+  }
+  dropdown.innerHTML = matches.map((m, i) => {
+    const col = m.kind === 'country' ? '#1A1A18' : (state.catColours[m.cat] || '#888');
+    return `<div class="sr-item ${i===0?'focus':''}" data-ds="${m.ds}" data-ref="${m.ref}">
+      <span class="dot" style="background:${col}"></span>
+      <span class="name">${m.name}</span>
+      <span class="where">${m.kind === 'country' ? 'Country' : m.where} · ${m.ds.toUpperCase()}</span>
+    </div>`;
+  }).join('');
+  dropdown.classList.add('show');
+  dropdown.querySelectorAll('.sr-item').forEach(el => {
+    el.addEventListener('click', () => {
+      if (el.dataset.ds !== state.ds) setDataset(el.dataset.ds);
+      // Allow setDataset to settle, then drill country
+      setTimeout(() => selectCountry(el.dataset.ref), 100);
+      document.getElementById('search-input').value = '';
+      dropdown.classList.remove('show');
+    });
+  });
+}
+
+// =============== MAIN RENDER ===============
+function render() {
+  const fcs = filteredCountries();
+  const totals = totalsOfFiltered(fcs);
+  document.getElementById('no-results').classList.toggle('show', fcs.length === 0);
+  drawMarkers(fcs);
+  updateKPIs(fcs, totals);
+  renderInsights(fcs, totals);
+}
+
+// =============== EVENT WIRING ===============
+document.querySelectorAll('.ds-toggle button').forEach(b => {
+  b.addEventListener('click', () => setDataset(b.dataset.ds));
+});
+
+document.getElementById('country-select').addEventListener('change', e => {
+  if (e.target.value) selectCountry(e.target.value);
+  else clearCountry();
+});
+
+document.getElementById('cat-toggle-all').addEventListener('click', () => {
+  const ds = currentDS();
+  const all = Object.keys(ds.cat_totals);
+  if (state.cats.size === all.length) {
+    state.cats = new Set();
+    document.querySelectorAll('.cat-tile').forEach(t => t.classList.add('off'));
+  } else {
+    state.cats = new Set(all);
+    document.querySelectorAll('.cat-tile').forEach(t => t.classList.remove('off'));
+  }
+  render();
+});
+
+document.querySelectorAll('.vm-btn').forEach(b => b.addEventListener('click', () => setViewMode(b.dataset.vm)));
+document.querySelectorAll('.insights-tab').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
+document.getElementById('reset-btn').addEventListener('click', resetFilters);
+
+// Search
+const searchInput = document.getElementById('search-input');
+searchInput.addEventListener('input', e => runSearch(e.target.value));
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    searchInput.value = '';
+    document.getElementById('search-results').classList.remove('show');
+    searchInput.blur();
+  } else if (e.key === 'Enter') {
+    const focused = document.querySelector('.sr-item.focus') || document.querySelector('.sr-item');
+    if (focused) focused.click();
+  } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const items = [...document.querySelectorAll('.sr-item')];
+    if (!items.length) return;
+    const cur = items.findIndex(i => i.classList.contains('focus'));
+    items.forEach(i => i.classList.remove('focus'));
+    let n;
+    if (e.key === 'ArrowDown') n = (cur + 1) % items.length;
+    else n = (cur - 1 + items.length) % items.length;
+    items[n].classList.add('focus');
+    items[n].scrollIntoView({ block: 'nearest' });
+  }
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('.header-search')) {
+    document.getElementById('search-results').classList.remove('show');
+  }
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === '/') { e.preventDefault(); searchInput.focus(); }
+  else if (e.key === '1') setDataset('d1');
+  else if (e.key === '2') setDataset('d2');
+  else if (e.key === 'r' || e.key === 'R') resetFilters();
+  else if (e.key === '?') document.getElementById('kbd-overlay').classList.add('show');
+  else if (e.key === 'Escape') {
+    document.getElementById('kbd-overlay').classList.remove('show');
+    if (state.country) clearCountry();
+  }
+});
+document.getElementById('kbd-overlay').addEventListener('click', e => {
+  if (e.target.id === 'kbd-overlay') e.currentTarget.classList.remove('show');
+});
+
+window.addEventListener('resize', positionPill);
+
+// =============== BOOT ===============
+function boot() {
+  // header counts
+  document.getElementById('ds-count-d1').textContent = RAW.d1.meta.total_orgs;
+  document.getElementById('ds-count-d2').textContent = RAW.d2.meta.total_orgs;
+
+  initColours();
+  setLabels();
+  buildCountrySelect();
+  buildCatTiles();
+  buildSecToggles();
+  buildLegend();
+  positionPill();
+  // Initial fit on Europe
+  setTimeout(() => map.fitBounds(EUROPE_BOUNDS, { padding: 20, duration: 0 }), 50);
+  render();
+}
+
+// expose for inline onclick
+window.selectCountry = selectCountry;
+window.clearCountry = clearCountry;
+
+boot();
+</script>
+</body>
+</html>
